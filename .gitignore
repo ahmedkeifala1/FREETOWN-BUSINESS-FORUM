@@ -30,8 +30,17 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — never commit real credentials (§14). The example file carries the
+# full list of variables with placeholder values and is committed on purpose.
 .env*
+!.env.example
+
+# local SQLite database and its journals — development data, rebuilt from
+# prisma/seed.ts. Production runs Postgres (see prisma/schema.prisma).
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
 
 # vercel
 .vercel

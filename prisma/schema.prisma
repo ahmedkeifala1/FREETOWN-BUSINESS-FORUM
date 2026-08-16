@@ -1,0 +1,1070 @@
+// SLBF — Sierra Leone Business Forum
+// Database design (SDR §9). Core entities plus the supporting tables the
+// modules in §10 require.
+//
+// Portability note: the datasource is SQLite for local development and
+// Postgres in production (SDR §8 lists MySQL primary / PostgreSQL alternative).
+// To keep one schema valid on both, this file deliberately avoids provider-
+// specific features that SQLite does not implement:
+//   * no `enum`     — status/role columns are String, constrained in TypeScript
+//                     (src/lib/enums.ts) and validated with zod at every write.
+//   * no `Json`     — JSON payloads are String columns suffixed `Json`.
+//   * no `String[]` — repeated values use explicit relation tables.
+// Money is never a float: every amount is an integer in the currency's minor
+// unit (cents) with an explicit currency code alongside it.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7 takes the connection URL from prisma.config.ts (for the CLI) and
+// from the driver adapter passed to PrismaClient (for the runtime), not here.
+datasource db {
+  provider = "sqlite"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity, sessions and access control (FR-03, FR-04, §12)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  country      String?
+
+  // One of Role (src/lib/enums.ts): VISITOR | MEMBER | DELEGATE | EDITOR |
+  // EVENT_MANAGER | FINANCE | ADMIN
+  role String @default("MEMBER")
+
+  emailVerified   Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  twoFactorSecret String?
+  lastLoginAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  member                Member?
+  authSessions          AuthSession[]
+  passwordResets        PasswordReset[]
+  registrations         Registration[]
+  payments              Payment[]
+  articles              Article[]
+  mediaUploads          MediaAsset[]
+  auditLogs             AuditLog[]
+  fundingApplications   FundingApplication[]
+  investorRequests      InvestorAccessRequest[]
+  reviewedApplications  FundingApplication[]     @relation("ApplicationReviewer")
+  decidedAccessRequests InvestorAccessRequest[]  @relation("AccessDecider")
+  handledSubmissions    FormSubmission[]         @relation("SubmissionHandler")
+  ledgerEntries         LedgerEntry[]
+  pageEdits             Page[]                   @relation("PageEditor")
+
+  @@index([role])
+  @@map("users")
+}
+
+/// Server-side session store. The cookie carries an opaque token only, so a
+/// session can be revoked centrally (§14 "secure sessions").
+model AuthSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_resets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Membership (FR-09) and the business directory (FR-10)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MembershipTier {
+  id                  String  @id @default(cuid())
+  slug                String  @unique
+  name                String
+  strapline           String?
+  priceMinor          Int
+  currency            String  @default("SLE")
+  priceMinorUSD       Int?
+  billingPeriodMonths Int     @default(12)
+  /// JSON array of feature strings rendered in the §4.10 comparison table.
+  featuresJson        String  @default("[]")
+  isActive            Boolean @default(true)
+  sortOrder           Int     @default(0)
+
+  members Member[]
+
+  @@map("membership_tiers")
+}
+
+model Member {
+  id               String @id @default(cuid())
+  userId           String @unique
+  memberNo         String @unique
+  tierId           String
+  organisationName String
+
+  /// One of MemberStatus: PENDING | ACTIVE | EXPIRED | SUSPENDED | CANCELLED
+  status String @default("PENDING")
+
+  joinedAt  DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier          MembershipTier   @relation(fields: [tierId], references: [id])
+  listing       DirectoryListing?
+  opportunities Opportunity[]
+  payments      Payment[]
+
+  @@index([status])
+  @@map("members")
+}
+
+model DirectoryListing {
+  id               String  @id @default(cuid())
+  memberId         String  @unique
+  slug             String  @unique
+  businessName     String
+  sectorId         String?
+  region           String?
+  /// One of BusinessSize: MICRO | SMALL | MEDIUM | LARGE
+  size             String?
+  shortDescription String
+  fullDescription  String?
+  logoUrl          String?
+  website          String?
+  contactEmail     String?
+  contactPhone     String?
+  address          String?
+  yearFounded      Int?
+  employees        Int?
+  /// Fields below the fold are only rendered to signed-in members (§4.11).
+  isPublished      Boolean @default(false)
+  isFeatured       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  member Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  sector Sector? @relation(fields: [sectorId], references: [id])
+
+  @@index([sectorId])
+  @@index([region])
+  @@index([isPublished])
+  @@map("directory_listings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sectors — shared by the homepage grid, directory filters and the deal room
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Sector {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  name         String
+  summary      String
+  /// Long-form copy for the sector page (§4.12).
+  overview     String?
+  incentives   String?
+  /// JSON array of {label, value} stat pairs.
+  dataJson     String  @default("[]")
+  iconKey      String  @default("briefcase")
+  heroImageUrl String?
+  sortOrder    Int     @default(0)
+  isPublished  Boolean @default(true)
+
+  listings      DirectoryListing[]
+  opportunities Opportunity[]
+  speakers      Speaker[]
+  applications  FundingApplication[]
+
+  @@map("sectors")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Event, programme, speakers and sponsors (§4.4–4.8)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Event {
+  id       String @id @default(cuid())
+  slug     String @unique
+  name     String
+  theme    String
+  tagline  String?
+
+  startDate DateTime
+  endDate   DateTime
+
+  venueName    String
+  venueAddress String
+  city         String  @default("Freetown")
+  country      String  @default("Sierra Leone")
+  venueMapUrl  String?
+  venueLat     Float?
+  venueLng     Float?
+
+  description      String?
+  objectivesJson   String  @default("[]")
+  whoAttendsJson   String  @default("[]")
+  expectedDelegates Int?
+  heroImageUrl     String?
+  brochureUrl      String?
+  prospectusUrl    String?
+
+  /// Exactly one event carries isCurrent — it drives the header, hero and
+  /// the default registration target.
+  isCurrent        Boolean @default(false)
+  isPublished      Boolean @default(true)
+  registrationOpen Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tracks        Track[]
+  sessions      EventSession[]
+  ticketTypes   TicketType[]
+  sponsors      Sponsor[]
+  registrations Registration[]
+  promoCodes    PromoCode[]
+
+  @@map("events")
+}
+
+model Track {
+  id        String  @id @default(cuid())
+  eventId   String
+  name      String
+  colour    String  @default("#0F7A3D")
+  sortOrder Int     @default(0)
+
+  event    Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions EventSession[]
+
+  @@index([eventId])
+  @@map("tracks")
+}
+
+/// The SDR calls this entity "Session"; it is named EventSession here so it is
+/// never confused with AuthSession in application code.
+model EventSession {
+  id          String   @id @default(cuid())
+  eventId     String
+  trackId     String?
+  slug        String
+  title       String
+  description String?
+  dayNumber   Int      @default(1)
+  startsAt    DateTime
+  endsAt      DateTime
+  room        String?
+  /// One of SessionType: KEYNOTE | PANEL | ROUNDTABLE | WORKSHOP | PLENARY |
+  /// NETWORKING | BREAK | CEREMONY
+  sessionType String   @default("PANEL")
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event    Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  track    Track?          @relation(fields: [trackId], references: [id])
+  speakers SessionSpeaker[]
+
+  @@unique([eventId, slug])
+  @@index([eventId, dayNumber])
+  @@map("event_sessions")
+}
+
+model Speaker {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  fullName     String
+  title        String
+  organisation String
+  bio          String?
+  photoUrl     String?
+  country      String?
+  sectorId     String?
+  linkedinUrl  String?
+  twitterUrl   String?
+  websiteUrl   String?
+  isFeatured   Boolean @default(false)
+  isPublished  Boolean @default(true)
+  sortOrder    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sector   Sector?         @relation(fields: [sectorId], references: [id])
+  sessions SessionSpeaker[]
+
+  @@index([sectorId])
+  @@map("speakers")
+}
+
+/// Explicit join table — Sessions ↔ Speakers is many-to-many (§9) and carries
+/// the speaker's role in that session.
+model SessionSpeaker {
+  sessionId String
+  speakerId String
+  /// One of SpeakerRole: SPEAKER | MODERATOR | CHAIR | PANELLIST | KEYNOTE
+  role      String @default("SPEAKER")
+  sortOrder Int    @default(0)
+
+  session EventSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  speaker Speaker      @relation(fields: [speakerId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, speakerId])
+  @@index([speakerId])
+  @@map("session_speakers")
+}
+
+model Sponsor {
+  id          String  @id @default(cuid())
+  eventId     String
+  slug        String
+  name        String
+  /// One of SponsorTier: PLATINUM | GOLD | SILVER | BRONZE | PARTNER | EXHIBITOR
+  tier        String  @default("SILVER")
+  logoUrl     String?
+  website     String?
+  description String?
+  sortOrder   Int     @default(0)
+  isPublished Boolean @default(true)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, slug])
+  @@index([eventId, tier])
+  @@map("sponsors")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ticketing and registration (FR-05, FR-06)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model TicketType {
+  id          String  @id @default(cuid())
+  eventId     String
+  slug        String
+  name        String
+  description String?
+
+  priceMinor    Int
+  currency      String @default("SLE")
+  /// Display price for the USD toggle in §4.9 step 1. Held explicitly rather
+  /// than converted at render time so published prices never drift with FX.
+  priceMinorUSD Int?
+
+  capacity Int?
+  sold     Int  @default(0)
+
+  salesStart DateTime?
+  salesEnd   DateTime?
+
+  minQuantity  Int     @default(1)
+  maxQuantity  Int     @default(10)
+  isGroup      Boolean @default(false)
+  groupMinSize Int?
+  /// Percentage discount applied automatically once groupMinSize is reached.
+  groupDiscountPercent Int?
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrations Registration[]
+  promoCodes    PromoCode[]
+
+  @@unique([eventId, slug])
+  @@map("ticket_types")
+}
+
+model PromoCode {
+  id      String  @id @default(cuid())
+  code    String  @unique
+  eventId String?
+  label   String?
+
+  /// One of DiscountType: PERCENT | FIXED
+  discountType  String @default("PERCENT")
+  /// Percentage points when PERCENT, minor units when FIXED.
+  discountValue Int
+
+  maxRedemptions Int?
+  timesRedeemed  Int  @default(0)
+
+  validFrom  DateTime?
+  validUntil DateTime?
+  isActive   Boolean   @default(true)
+
+  ticketTypeId String?
+
+  createdAt DateTime @default(now())
+
+  event         Event?         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType    TicketType?    @relation(fields: [ticketTypeId], references: [id])
+  registrations Registration[]
+
+  @@map("promo_codes")
+}
+
+model Registration {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  eventId      String
+  ticketTypeId String
+  userId       String?
+
+  quantity Int @default(1)
+
+  // Lead delegate / billing contact captured at §4.9 step 2.
+  firstName     String
+  lastName      String
+  email         String
+  phone         String
+  organisation  String?
+  jobTitle      String?
+  country       String  @default("Sierra Leone")
+  dietary       String?
+  accessibility String?
+
+  isGroup   Boolean @default(false)
+  groupName String?
+
+  /// One of RegistrationStatus: PENDING | CONFIRMED | CANCELLED | REFUNDED
+  status String @default("PENDING")
+
+  currency      String @default("SLE")
+  subtotalMinor Int
+  discountMinor Int    @default(0)
+  totalMinor    Int
+  promoCodeId   String?
+
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  event      Event       @relation(fields: [eventId], references: [id])
+  ticketType TicketType  @relation(fields: [ticketTypeId], references: [id])
+  user       User?       @relation(fields: [userId], references: [id])
+  promoCode  PromoCode?  @relation(fields: [promoCodeId], references: [id])
+  payment    Payment?
+  delegates  Delegate[]
+
+  @@index([eventId, status])
+  @@index([email])
+  @@map("registrations")
+}
+
+/// One record per attending person — a single Registration of quantity N
+/// produces N Delegates, each with its own QR e-ticket (FR-05).
+model Delegate {
+  id             String @id @default(cuid())
+  registrationId String
+
+  firstName    String
+  lastName     String
+  email        String
+  phone        String?
+  organisation String?
+  jobTitle     String?
+
+  ticketCode String  @unique
+  /// HMAC-signed payload encoded into the QR image; verified at check-in.
+  qrPayload  String
+
+  checkedInAt DateTime?
+  checkedInBy String?
+
+  createdAt DateTime @default(now())
+
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([registrationId])
+  @@map("delegates")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payments, invoicing and the audit ledger (FR-07, FR-08, FR-14)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Payment {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  registrationId String? @unique
+  memberId       String?
+  userId         String?
+
+  /// One of PaymentPurpose: EVENT_REGISTRATION | MEMBERSHIP | SPONSORSHIP | OTHER
+  purpose String
+  /// One of PaymentMethod: ORANGE_MONEY | AFRIMONEY | CARD | OFFLINE
+  method  String
+  /// Gateway identifier, e.g. "orange-money-sandbox".
+  provider String?
+
+  /// Identifier returned by the PSP. No card data is ever stored (NFR-06).
+  providerRef String?
+
+  currency    String @default("SLE")
+  amountMinor Int
+
+  /// One of PaymentStatus: PENDING | PROCESSING | PAID | FAILED | REFUNDED | CANCELLED
+  status String @default("PENDING")
+
+  payerName  String?
+  payerPhone String?
+  payerEmail String?
+
+  paidAt        DateTime?
+  failureReason String?
+  /// Verbatim webhook body, retained for reconciliation and dispute handling.
+  rawCallbackJson String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  registration  Registration? @relation(fields: [registrationId], references: [id])
+  member        Member?       @relation(fields: [memberId], references: [id])
+  user          User?         @relation(fields: [userId], references: [id])
+  invoice       Invoice?
+  ledgerEntries LedgerEntry[]
+
+  @@index([status])
+  @@index([method])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+model Invoice {
+  id        String @id @default(cuid())
+  number    String @unique
+  paymentId String @unique
+
+  issuedAt DateTime  @default(now())
+  dueAt    DateTime?
+
+  currency      String @default("SLE")
+  subtotalMinor Int
+  taxMinor      Int    @default(0)
+  totalMinor    Int
+
+  /// One of InvoiceStatus: ISSUED | PAID | VOID | OVERDUE
+  status String @default("ISSUED")
+
+  billToName    String
+  billToEmail   String
+  billToAddress String?
+  notes         String?
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+/// Append-only double-entry ledger. Every payment state change writes a pair of
+/// entries; nothing in the application updates or deletes a row here (FR-14).
+model LedgerEntry {
+  id        String @id @default(cuid())
+  paymentId String
+
+  /// One of LedgerEntryType: DEBIT | CREDIT
+  entryType String
+  /// Account code, e.g. "REVENUE:EVENT_REGISTRATION", "ASSET:MOBILE_MONEY".
+  account   String
+
+  currency    String @default("SLE")
+  amountMinor Int
+  description String
+
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation(fields: [createdById], references: [id])
+
+  @@index([paymentId])
+  @@index([account])
+  @@map("ledger_entries")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Invest & Deal Room (FR-15, §4.12)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Opportunity {
+  id       String @id @default(cuid())
+  slug     String @unique
+  title    String
+  memberId String?
+  sectorId String?
+
+  region String?
+  /// One of OpportunityStage: CONCEPT | STARTUP | GROWTH | EXPANSION | MATURE
+  stage  String @default("GROWTH")
+
+  ticketSizeMinMinor Int?
+  ticketSizeMaxMinor Int?
+  currency           String @default("USD")
+
+  summary     String
+  description String?
+  useOfFunds  String?
+
+  contactName  String?
+  contactEmail String?
+
+  /// One of OpportunityStatus: DRAFT | SUBMITTED | UNDER_REVIEW | PUBLISHED |
+  /// REJECTED | CLOSED
+  status      String  @default("DRAFT")
+  isPublished Boolean @default(false)
+  publishedAt DateTime?
+
+  heroImageUrl    String?
+  documentsJson   String  @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  member         Member?                 @relation(fields: [memberId], references: [id])
+  sector         Sector?                 @relation(fields: [sectorId], references: [id])
+  accessRequests InvestorAccessRequest[]
+  applications   FundingApplication[]
+
+  @@index([sectorId])
+  @@index([isPublished])
+  @@map("opportunities")
+}
+
+model FundingApplication {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  opportunityId String?
+  userId        String?
+
+  businessName String
+  contactName  String
+  email        String
+  phone        String
+  sectorId     String?
+  region       String?
+
+  amountRequestedMinor Int
+  currency             String @default("USD")
+  stage                String @default("GROWTH")
+
+  businessDescription String
+  useOfFunds          String
+  yearsTrading        Int?
+  employees           Int?
+  annualRevenueMinor  Int?
+  attachmentsJson     String @default("[]")
+
+  /// One of ApplicationStatus: SUBMITTED | UNDER_REVIEW | SHORTLISTED |
+  /// APPROVED | REJECTED
+  status       String    @default("SUBMITTED")
+  reviewNotes  String?
+  reviewedById String?
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id])
+  sector      Sector?      @relation(fields: [sectorId], references: [id])
+  reviewedBy  User?        @relation("ApplicationReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status])
+  @@map("funding_applications")
+}
+
+model InvestorAccessRequest {
+  id            String @id @default(cuid())
+  opportunityId String
+  userId        String?
+
+  investorName     String
+  organisation     String?
+  email            String
+  phone            String?
+  country          String?
+  investmentFocus  String?
+  ticketSizeMinor  Int?
+  currency         String  @default("USD")
+  message          String?
+
+  /// One of AccessRequestStatus: PENDING | APPROVED | DECLINED
+  status       String    @default("PENDING")
+  decidedById  String?
+  decidedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id])
+  decidedBy   User?       @relation("AccessDecider", fields: [decidedById], references: [id])
+
+  @@index([opportunityId])
+  @@index([status])
+  @@map("investor_access_requests")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Content: pages, news, media (FR-01, FR-02)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// CMS-managed page bodies. Route files own the layout; the copy in them is
+/// read from here so staff can edit without a redeploy (§15).
+model Page {
+  id    String @id @default(cuid())
+  slug  String @unique
+  title String
+  /// JSON map of named content blocks consumed by the matching route.
+  bodyJson String @default("{}")
+
+  metaTitle       String?
+  metaDescription String?
+
+  /// One of ContentStatus: DRAFT | PUBLISHED | ARCHIVED
+  status      String @default("PUBLISHED")
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  updatedBy User? @relation("PageEditor", fields: [updatedById], references: [id])
+
+  @@map("pages")
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  sortOrder   Int     @default(0)
+
+  articles Article[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
+
+  articles Article[]
+
+  @@map("tags")
+}
+
+model Article {
+  id      String @id @default(cuid())
+  slug    String @unique
+  title   String
+  excerpt String
+  body    String
+
+  heroImageUrl String?
+  categoryId   String?
+  authorId     String?
+
+  /// One of ContentStatus: DRAFT | PUBLISHED | ARCHIVED
+  status      String    @default("DRAFT")
+  publishedAt DateTime?
+  isFeatured  Boolean   @default(false)
+  viewCount   Int       @default(0)
+
+  metaTitle       String?
+  metaDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category Category? @relation(fields: [categoryId], references: [id])
+  author   User?     @relation(fields: [authorId], references: [id])
+  tags     Tag[]
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@map("articles")
+}
+
+model MediaCollection {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  /// One of MediaKind: GALLERY | VIDEO | DOWNLOAD
+  kind        String  @default("GALLERY")
+  description String?
+  coverImageUrl String?
+  sortOrder   Int     @default(0)
+  isPublished Boolean @default(true)
+
+  assets MediaAsset[]
+
+  @@map("media_collections")
+}
+
+model MediaAsset {
+  id       String @id @default(cuid())
+  filename String
+  url      String
+  mimeType String
+  sizeBytes Int   @default(0)
+  /// One of MediaKind: GALLERY | VIDEO | DOWNLOAD
+  kind     String @default("GALLERY")
+
+  title    String?
+  altText  String?
+  caption  String?
+  /// Poster frame for VIDEO assets.
+  thumbnailUrl String?
+
+  collectionId String?
+  uploadedById String?
+  isPublic     Boolean @default(true)
+  downloadCount Int    @default(0)
+  sortOrder    Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  collection MediaCollection? @relation(fields: [collectionId], references: [id])
+  uploadedBy User?            @relation(fields: [uploadedById], references: [id])
+
+  @@index([collectionId])
+  @@map("media_assets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enquiries, newsletter and audit (FR-12, §14)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model FormSubmission {
+  id String @id @default(cuid())
+
+  /// One of FormType: CONTACT | SPONSOR_ENQUIRY | EXHIBITOR_ENQUIRY |
+  /// MEMBERSHIP_ENQUIRY | GENERAL
+  formType String @default("CONTACT")
+
+  name    String
+  email   String
+  phone   String?
+  subject String?
+  message String
+  /// Any additional form-specific fields.
+  payloadJson String @default("{}")
+
+  /// One of SubmissionStatus: NEW | READ | RESPONDED | ARCHIVED
+  status String @default("NEW")
+
+  ipAddress String?
+  userAgent String?
+
+  handledById String?
+  handledAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  handledBy User? @relation("SubmissionHandler", fields: [handledById], references: [id])
+
+  @@index([formType, status])
+  @@index([createdAt])
+  @@map("form_submissions")
+}
+
+model NewsletterSubscriber {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  isConfirmed  Boolean   @default(false)
+  confirmToken String?
+  source       String?
+  unsubscribedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@map("newsletter_subscribers")
+}
+
+/// Outbound email and SMS (FR-08).
+///
+/// Every message is written here first and dispatched second, so a delegate's
+/// receipt is never lost because the SMTP host was briefly unreachable — a
+/// failed send stays QUEUED and is retried. It also gives the secretariat an
+/// answerable record of what was sent to whom, which "fire and forget" does not.
+model MessageOutbox {
+  id String @id @default(cuid())
+
+  /// One of MessageChannel: EMAIL | SMS
+  channel String
+  /// Email address or MSISDN, depending on the channel.
+  recipient String
+  subject   String?
+  body      String
+  /// Template key, e.g. "registration.confirmed" — used for reporting.
+  template  String?
+
+  /// What the message is about, for the audit trail: "Registration", "Payment".
+  relatedType String?
+  relatedId   String?
+
+  /// One of MessageStatus: QUEUED | SENT | FAILED | SUPPRESSED
+  status    String    @default("QUEUED")
+  attempts  Int       @default(0)
+  lastError String?
+  sentAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, channel])
+  @@index([relatedType, relatedId])
+  @@map("message_outbox")
+}
+
+/// Audit trail for financial and administrative actions (§14).
+model AuditLog {
+  id     String  @id @default(cuid())
+  userId String?
+
+  action     String
+  entityType String
+  entityId   String?
+  summary    String
+  metadataJson String @default("{}")
+
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Site-wide content managed from the admin panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  group     String   @default("general")
+  label     String
+  /// One of SettingType: TEXT | TEXTAREA | NUMBER | BOOLEAN | URL | EMAIL
+  type      String   @default("TEXT")
+  sortOrder Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model Partner {
+  id      String  @id @default(cuid())
+  slug    String  @unique
+  name    String
+  logoUrl String?
+  website String?
+  /// One of PartnerKind: PARTNER | AFFILIATION | SUPPORTER
+  kind    String  @default("PARTNER")
+  description String?
+  sortOrder   Int     @default(0)
+  isPublished Boolean @default(true)
+
+  @@map("partners")
+}
+
+model LeadershipProfile {
+  id       String  @id @default(cuid())
+  slug     String  @unique
+  name     String
+  role     String
+  bio      String?
+  photoUrl String?
+  /// One of LeadershipGroup: LEADERSHIP | SECRETARIAT | GOVERNANCE
+  group    String  @default("LEADERSHIP")
+  email    String?
+  linkedinUrl String?
+  sortOrder   Int     @default(0)
+  isPublished Boolean @default(true)
+
+  @@map("leadership_profiles")
+}
+
+/// One entry in the "our story" timeline on the About page (§4.3).
+model Milestone {
+  id   String @id @default(cuid())
+  slug String @unique
+  /// Free text rather than an integer, so a span ("2014–2016") reads correctly.
+  year  String
+  title String
+  body  String
+
+  imageUrl String?
+  /// Empty string means decorative; null means the secretariat has not set one.
+  imageAlt String?
+
+  sortOrder   Int     @default(0)
+  isPublished Boolean @default(true)
+
+  @@map("milestones")
+}
+
+/// An endorsement quoted on the homepage (§4.2).
+///
+/// A row rather than a settings blob: the secretariat rotates these between
+/// editions, and a quote carries an attribution that has to stay attached to
+/// it — a delegate's name against the wrong organisation is worse than no
+/// quote at all.
+model Testimonial {
+  id    String @id @default(cuid())
+  slug  String @unique
+  quote String
+
+  authorName   String
+  authorRole   String?
+  organisation String
+  /// Optional — the carousel falls back to initials, as the speaker grid does.
+  photoUrl String?
+
+  sortOrder   Int     @default(0)
+  isPublished Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonials")
+}
