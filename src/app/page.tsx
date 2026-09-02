@@ -295,31 +295,6 @@ function Hero({
             {event?.tagline ?? setting(settings, 'site.tagline')}
           </p>
 
-          {/* Square-cornered, uppercase and red, matching the reference. All
-              three are local to the hero — the rounded gold button is still
-              what every other page uses for its main call to action (§3.5),
-              and the red here does not follow the cycle: it stays put on the
-              reference page while the words change colour above it. */}
-          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            {event?.registrationOpen && (
-              <ButtonLink
-                href="/register"
-                variant="ember"
-                size="lg"
-                className="rounded-none font-semibold uppercase tracking-wider"
-              >
-                Register to attend
-                <Icon name="arrowRight" className="size-5" />
-              </ButtonLink>
-            )}
-            <ButtonLink
-              href="/deal-room"
-              size="lg"
-              className="rounded-none border border-white/40 bg-transparent font-semibold uppercase tracking-wider text-white hover:bg-white/10 active:bg-white/15"
-            >
-              Explore opportunities
-            </ButtonLink>
-          </div>
         </div>
       </Container>
 
