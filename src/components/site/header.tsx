@@ -13,23 +13,39 @@ import { cn } from '@/lib/cn'
 /**
  * Global header (§3.5, §4.17), built to the composition of the reference site.
  *
- * One near-black bar rather than a utility strip above a white header: the
- * hero below it is near-black too, and a white bar meeting it read as a seam.
- * Login and a square Register button share the right-hand end.
+ * One bar: logo left, the six links through the middle, and search, login and
+ * the enquiry button at the right-hand end, in the reference's order and with
+ * its proportions — a tall bar (96px on a wide screen), wide air between the
+ * links, unbolded labels at 15px with the letter-spacing opened up, and a
+ * hairline that grows under a label on hover and stays out on the current
+ * page.
  *
- * Register stays visible at every width — on a phone it sits beside the
- * hamburger rather than inside the drawer, because the brief calls for
+ * It stays near-black at every width, where the reference is dark only on its
+ * landing template and white with a shadow on interior pages: most interior
+ * pages here open on a near-black `PageHero`, which a white bar would meet as
+ * a seam. The mark sits on it transparently, in its own colours (see
+ * `site/logo`). The accent under the
+ * links and on hover is gold rather than the reference's red because the
+ * palette is ours (§3.2); the composition is what is being followed, not the
+ * brand.
+ *
+ * The enquiry button stays visible at every width — on a phone it sits beside
+ * the hamburger rather than inside the drawer, because the brief calls for
  * registration-first design and a CTA hidden behind a menu is not that.
  *
- * The desktop dropdowns are CSS-only (`group-hover` plus `focus-within`), so
- * they work with a keyboard and before JavaScript loads. Only the mobile
- * drawer needs state, which is why this is the one piece of site chrome that
- * ships as a Client Component.
+ * Every item in the bar is a plain link. The reference site has no menu in its
+ * header and neither does this one: About used to open a four-item dropdown,
+ * and it now goes straight to the About page, which carries the routes into
+ * leadership, governance and partners itself. A menu that has to be hovered
+ * costs a visitor on a touch screen an extra tap to reach the very page the
+ * word names, and the section landing pages do the job without that.
+ *
+ * Only the mobile drawer needs state, which is why this is the one piece of
+ * site chrome that ships as a Client Component.
  */
 
 type Props = {
   eventName: string | null
-  eventDates: string | null
   registrationOpen: boolean
   /** Null when signed out — drives the portal link's label only. */
   userFirstName: string | null
@@ -38,7 +54,6 @@ type Props = {
 
 export function Header({
   eventName,
-  eventDates,
   registrationOpen,
   userFirstName,
   isStaff,
@@ -76,80 +91,55 @@ export function Header({
       </a>
 
       <header className="sticky top-0 z-40 bg-ink-950 text-white">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:h-24">
           <Link
             href="/"
             aria-label={`${eventName ?? 'Freetown Business Forum'} — home`}
           >
-            <Logo inverted />
+            <Logo priority size="header" />
           </Link>
 
+          {/* Centred in what the logo and the right-hand cluster leave, rather
+              than on the page: the reference centres its nav absolutely and
+              lets the two ends overlap it, which it can afford because its bar
+              is 1860px wide. Ours is the site's `wide` container, so the links
+              are kept in flow where they cannot collide with the enquiry
+              button at the narrow end of `xl`. */}
           <nav
             aria-label="Main"
-            className="hidden xl:flex xl:items-center xl:gap-1"
+            className="hidden xl:flex xl:flex-1 xl:items-center xl:justify-center xl:gap-8"
           >
             {MAIN_NAV.map((item) => {
               const active = isActivePath(pathname, item.href)
 
-              if (!item.children) {
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'px-3 py-2 text-sm font-medium transition-colors',
-                      active ? 'text-gold-400' : 'text-white/85 hover:text-white',
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                )
-              }
-
               return (
-                <div key={item.href} className="group relative">
-                  <Link
-                    href={item.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors',
-                      active ? 'text-gold-400' : 'text-white/85 hover:text-white',
-                    )}
-                  >
-                    {item.label}
-                    <Icon
-                      name="chevronDown"
-                      className="size-3.5 text-white/50 transition-transform group-hover:rotate-180"
-                    />
-                  </Link>
-
-                  <div
-                    className={cn(
-                      'invisible absolute left-0 top-full z-10 w-60 pt-2 opacity-0 transition',
-                      'group-hover:visible group-hover:opacity-100',
-                      'group-focus-within:visible group-focus-within:opacity-100',
-                    )}
-                  >
-                    <ul className="border border-white/10 bg-ink-900 py-1.5 shadow-xl">
-                      {item.children.map((child) => (
-                        <li key={child.href}>
-                          <Link
-                            href={child.href}
-                            className="block px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white"
-                          >
-                            {child.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    // The rule under the label is the reference's: a hairline
+                    // that grows from the centre to three-fifths of the word
+                    // on hover, and stays out at full width on the page you
+                    // are on. It is drawn as a pseudo-element so it takes no
+                    // space and the labels never shift.
+                    'relative py-2 text-[0.9375rem] tracking-wider transition-colors',
+                    "after:absolute after:inset-x-0 after:-bottom-0.5 after:mx-auto after:h-px after:bg-gold-400 after:transition-[width] after:content-['']",
+                    active
+                      ? 'text-gold-400 after:w-3/5'
+                      : 'text-white/85 after:w-0 hover:text-gold-400 hover:after:w-3/5',
+                  )}
+                >
+                  {item.label}
+                </Link>
               )
             })}
           </nav>
 
-          <div className="flex items-center gap-3">
+          {/* 15px between the utilities and 30px before the button, as on the
+              reference — the button reads as a separate thing rather than the
+              last item in a row. */}
+          <div className="flex items-center gap-4">
             {isStaff && (
               <Link
                 href="/admin"
@@ -164,17 +154,19 @@ export function Header({
                 and a query already typed survives a reload. */}
             <Link
               href="/search"
-              className="hidden size-10 items-center justify-center text-white/85 hover:text-white lg:inline-flex"
+              className="hidden size-10 items-center justify-center text-white/85 hover:text-gold-400 lg:inline-flex"
             >
               <span className="sr-only">Search</span>
               <Icon name="search" className="size-5" />
             </Link>
 
+            {/* Plain text, no icon: the reference pairs one icon — search —
+                with a worded login, and a second glyph beside it turned the
+                right-hand end into a row of symbols. */}
             <Link
               href="/portal"
-              className="hidden items-center gap-1.5 text-sm font-medium text-white/85 hover:text-white lg:inline-flex"
+              className="hidden text-[0.9375rem] tracking-wider text-white/85 hover:text-gold-400 lg:inline-flex"
             >
-              <Icon name="user" className="size-4" />
               {userFirstName ?? 'Login'}
             </Link>
 
@@ -185,7 +177,7 @@ export function Header({
               href="/contact"
               variant="accent"
               size="sm"
-              className="rounded-none font-semibold uppercase tracking-wider"
+              className="rounded-none font-semibold uppercase tracking-wider lg:ml-3"
             >
               <span className="sm:hidden">Enquire</span>
               <span className="hidden sm:inline">Make an enquiry</span>
@@ -205,22 +197,11 @@ export function Header({
             </button>
           </div>
         </div>
-
-        {/* The forum's dates as text rather than an image, for search results
-            (NFR-10). Subordinate to the bar above: context, not navigation. */}
-        {eventName && eventDates && (
-          <p className="hidden border-t border-white/10 bg-ink-900 py-1.5 text-center text-xs text-white/70 lg:block">
-            <span className="font-medium text-white">{eventName}</span>
-            <span aria-hidden="true" className="mx-2 text-white/30">
-              ·
-            </span>
-            {eventDates}
-          </p>
-        )}
       </header>
 
-      {/* Mobile drawer. Sections are expanded rather than collapsed: on a phone
-          a second tap to reveal four links is friction for no gain.
+      {/* Mobile drawer. One row per top-level page, in the order the bar shows
+          them — the same flat list, since there are no sections left to
+          expand.
 
           Closing on click of any link covers every way out of the drawer, and
           replaces resetting the state from an effect on each navigation — a
@@ -249,21 +230,6 @@ export function Header({
                   >
                     {item.label}
                   </Link>
-
-                  {item.children && (
-                    <ul className="mt-0.5 space-y-0.5 pl-3">
-                      {item.children.map((child) => (
-                        <li key={child.href}>
-                          <Link
-                            href={child.href}
-                            className="block px-3 py-2.5 text-sm text-white/70 hover:bg-white/10 hover:text-white"
-                          >
-                            {child.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </li>
               ))}
             </ul>

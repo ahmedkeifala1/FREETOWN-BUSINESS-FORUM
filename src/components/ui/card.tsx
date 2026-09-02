@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
+import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
+import { formatMoney, isCurrency, type Currency } from '@/lib/money'
 
 /**
  * Cards and badges (§3.5 "card grid", "stat counters").
@@ -199,5 +201,45 @@ export function Avatar({
     >
       {initials}
     </span>
+  )
+}
+
+/**
+ * The ticket size on a Deal Room proposition (§4.12 "filterable cards … ticket
+ * size").
+ *
+ * Written as a range, a floor or a ceiling depending on which bounds the
+ * business actually gave, rather than printing a zero for the missing one — a
+ * proposition that says "from Le 0" reads as a data-entry error, and on a page
+ * asking investors for money that costs it more credibility than the missing
+ * number does.
+ *
+ * Renders nothing at all when neither bound is set. An empty row is worse than
+ * no row: it invites the reader to wonder what was meant to be there.
+ */
+export function TicketSize({
+  min,
+  max,
+  currency,
+}: {
+  min: number | null
+  max: number | null
+  currency: string
+}) {
+  const unit: Currency = isCurrency(currency) ? currency : 'USD'
+  const money = (minor: number) => formatMoney(minor, unit, { compact: true })
+
+  let text: string | null = null
+  if (min && max) text = `${money(min)} – ${money(max)}`
+  else if (min) text = `from ${money(min)}`
+  else if (max) text = `up to ${money(max)}`
+
+  if (!text) return null
+
+  return (
+    <div className="flex items-center gap-1.5 font-medium text-ink-900">
+      <Icon name="trending" className="size-4 shrink-0 text-forest-600" />
+      <span>{text}</span>
+    </div>
   )
 }

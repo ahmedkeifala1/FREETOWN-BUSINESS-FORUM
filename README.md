@@ -1,8 +1,12 @@
-# Sierra Leone Business Forum (SLBF)
+# Freetown Business Forum (FBF)
 
-A dynamic, database-driven web application implementing the SLBF System Design
-Requirement (SDR v1.1). Every content page is generated from the database and
-managed through the admin panel — publishing requires no redeploy.
+A dynamic, database-driven web application for the Freetown Business Forum, a
+non-profit founded on 12 December 2023 to empower Sierra Leone’s business
+community. It implements the System Design Requirement (SDR v1.1), which was
+written under the working name "SLBF" — the organisation is FBF.
+
+Every content page is generated from the database and managed through the admin
+panel — publishing requires no redeploy.
 
 ## Stack
 
@@ -11,7 +15,7 @@ managed through the admin panel — publishing requires no redeploy.
 | Framework | Next.js 16 (App Router, React 19, Server Components) |
 | Language | TypeScript (strict) |
 | Styling | Tailwind CSS v4, design tokens in `src/app/globals.css` |
-| Database | SQLite in development, Postgres in production, via Prisma 7 |
+| Database | Postgres (Neon on Vercel) via Prisma 7 and the `pg` driver adapter |
 | Auth | Server-side sessions, bcrypt, opaque cookie tokens |
 | Validation | Zod at every write |
 | Payments | Orange Money, Afrimoney, card (hosted page), offline invoice |
@@ -26,7 +30,7 @@ than CMS content, and a headless build keeps the payment module isolated as
 
 ```bash
 npm install
-cp .env.example .env      # then fill in AUTH_SECRET and TICKET_SECRET
+cp .env.example .env      # then fill in DATABASE_URL and TICKET_SECRET
 npm run db:migrate        # create the schema
 npm run db:seed           # load sectors, the forum, speakers, content
 npm run dev
@@ -35,14 +39,14 @@ npm run dev
 Open http://localhost:3000.
 
 The seed creates four staff accounts and eight member accounts, all with the
-password `SLBFdev2026!`:
+password `FBFdev2026!`:
 
 | Account | Role |
 |---------|------|
-| `admin@slbf.sl` | Administrator |
-| `editor@slbf.sl` | Editor |
-| `events@slbf.sl` | Event manager |
-| `finance@slbf.sl` | Finance |
+| `admin@fbf.sl` | Administrator |
+| `editor@fbf.sl` | Editor |
+| `events@fbf.sl` | Event manager |
+| `finance@fbf.sl` | Finance |
 
 ## Scripts
 
@@ -84,7 +88,8 @@ src/
 **Money** is always an integer in the currency's minor unit, with the currency
 code alongside it. No float ever touches a price, a discount or a ledger entry.
 
-**Status columns** are `String` in the database because SQLite has no enum type.
+**Status columns** are `String` in the database rather than a native enum, so
+that adding a status is a code change and not a migration that locks a table.
 `src/lib/enums.ts` is the single source of truth for permitted values and
 `src/lib/validation.ts` enforces them at runtime. Never write a bare string
 literal to one.
@@ -98,19 +103,51 @@ type and promo code IDs.
 
 ## Status
 
-Built and verified:
+Built and verified (`npm run build` and `npm run typecheck` both clean):
 
 - Database schema, migrations and seed content
-- Auth, RBAC, validation, pricing, QR ticketing, payment gateways, notifications
+- Auth, RBAC, validation, pricing, QR ticketing, payment gateways, notifications,
+  audit trail
 - Design system, global header/footer, homepage (§4.2), error and 404 pages
+- Public site: About, the forum (overview, agenda, speakers, sponsors, venue),
+  Learning Hub, Blog, Contact, Membership, business directory, Deal Room,
+  privacy and terms
+- Registration flow (§4.9), payment webhooks and the sandbox checkout
+- Membership application (§4.10) — creates a PENDING member and a draft
+  directory entry; the account it opens has no usable password until activation
+- Member / delegate portal (§4.16): sign in, forgotten and reset password,
+  dashboard, e-tickets with QR, membership, directory listing management,
+  payments and invoices, profile and password
+- Admin panel (§12): dashboard queue, programme and speakers, registrations and
+  check-in, payments, ledger, members with activation and invoicing, Deal Room
+  review queues, enquiries, articles, users, settings, audit log
+- Programme editing (§4.5, §4.6): sessions, tracks, speaker profiles and each
+  session's line-up. A session's day is derived from its start date rather than
+  typed, so the agenda's day tabs cannot disagree with the dates under them
+- Forum editing (§4.4): each edition's dates, venue, objectives, brochure and
+  prospectus, whether registration is open, and which forum the site promotes.
+  Exactly one forum is current, and the flag is moved in a transaction rather
+  than left to whoever saves next. Forums are never deleted — they are the
+  parent of paid registrations and of an append-only ledger — so unpublishing
+  is the only removal offered
+- Media collections (§4.14): the collections the homepage gallery, the film
+  band, the recordings page and the downloads page read, and the files in them.
+  Files are added by address — a path under `public/` or a link to the platform
+  holding them — not uploaded: `public/` is baked into the deployment, and the
+  local/remote distinction is what decides whether a film plays in place or is
+  linked out. An asset's kind follows its collection, and its type and size are
+  read from the file rather than typed
+- Self-hosted video (§4.14): the homepage film band and the recordings page.
+  A `/`-relative asset URL is a file this site serves and is played in place;
+  anything else is a recording on a platform and is linked out to its host.
+  Nothing is fetched until the player is scrolled to
 
-Not yet built — the remaining route work:
+Not yet built:
 
-- About, Forum (overview, agenda, speakers, sponsors, venue), News, Media, Contact
-- Registration flow (§4.9) and the payment callback routes
-- Membership pages, application flow and the business directory
-- Invest & Deal Room pages, funding applications, investor access requests
-- Member/delegate portal and the admin panel
+- Ticket types, promo codes and sponsors — seeded, and editable only in the
+  database
+- Refunds (the ledger is append-only, so a refund is its own action, not an
+  undo of a settlement)
 
 ## Deployment
 
@@ -118,7 +155,54 @@ Set every variable in `.env.example` in the host environment. In production:
 
 - `PAYMENTS_MODE=live` requires all gateway credentials — the app refuses to
   start without them rather than accepting registrations it cannot collect.
-- Switch `provider` in `prisma/schema.prisma` and the adapter in `src/lib/db.ts`
-  to Postgres. No query code changes.
 - `TICKET_SECRET` must be stable for the life of an event — rotating it
   invalidates every e-ticket already issued.
+- `NEXT_PUBLIC_SITE_URL` must be the real public origin. It is baked into QR
+  ticket links and canonical tags, so a preview URL left here sends delegates
+  and search engines to a deployment that will later be replaced.
+
+### Vercel
+
+The app is deployed from this repository. Vercel's filesystem is ephemeral and
+read-only, which is the whole reason the database is Postgres rather than a
+file — and the same reason the media library stores *references* to files
+rather than accepting uploads (see `src/lib/actions/admin-media.ts`).
+
+**First deployment, in order.** The order matters: the build runs
+`prisma migrate deploy`, so the database has to exist before the first build.
+
+1. **Create the database.** In the Vercel dashboard, *Storage → Create
+   Database → Neon*. Choose a region near both the audience and the functions
+   (`eu-west-2` / London for Sierra Leone). Connecting it to the project adds
+   `DATABASE_URL` automatically.
+2. **Use the pooled connection string.** Confirm the `DATABASE_URL` Vercel
+   added contains `-pooler`. Each serverless instance opens its own pool, so
+   the direct endpoint exhausts connections as soon as traffic spreads across
+   instances. `src/lib/db.ts` caps each pool at one connection for the same
+   reason.
+3. **Import the repository.** *Add New → Project*, pick this repo. The
+   framework preset and build command are detected; nothing needs overriding.
+4. **Add the remaining environment variables** from `.env.example` — at minimum
+   `TICKET_SECRET` (`openssl rand -base64 48`) and `NEXT_PUBLIC_SITE_URL`.
+   `PAYMENTS_MODE=sandbox` and `MAIL_MODE=log` are the safe defaults until the
+   gateway credentials exist; `src/lib/env.ts` refuses to boot on a half-
+   configured `live`.
+5. **Deploy**, then **seed once** from a machine with the same connection
+   string: `DATABASE_URL="<pooled url>" npm run db:seed`. Every page reads its
+   content from the database, so an unseeded deployment renders an empty site
+   rather than a broken one. The seed is idempotent and safe to re-run.
+6. **Change the seeded passwords.** The seed's accounts share a published
+   password (see *Getting started*) and are development fixtures, not staff
+   credentials.
+
+Later deployments need none of this: pushing to the default branch runs
+`prisma migrate deploy` and then the build, so a committed migration is applied
+before the code that depends on it serves a request.
+
+**Regions.** Set the function region to match the database region
+(*Settings → Functions*). A function in Washington querying a database in
+London pays that round trip on every query, and these pages issue several.
+
+**Preview deployments** inherit the same `DATABASE_URL` unless you scope the
+variable to Production. Until you do, a preview branch carrying a new migration
+will migrate the production database when it builds.

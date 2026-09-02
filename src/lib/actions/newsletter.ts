@@ -63,7 +63,7 @@ export async function subscribeToNewsletter(
       },
     })
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://slbf.sl'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fbf.sl'
 
     await sendEmail({
       to: email,

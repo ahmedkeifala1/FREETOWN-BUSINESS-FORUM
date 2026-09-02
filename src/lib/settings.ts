@@ -41,11 +41,18 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   'site.name': 'Freetown Business Forum',
   'site.tagline':
     'Convening capital, government and enterprise for a prosperous Sierra Leone',
-  'contact.email': 'info@slbf.sl',
-  'contact.phone': '+232 76 000 000',
-  'contact.address': 'FBF Secretariat, Freetown, Sierra Leone',
-  'home.heroStatement': 'A forum for those who',
-  'home.heroWords': 'Invest,Partner,Build',
+  'contact.email': 'freetownbusinessforum@gmail.com',
+  'contact.phone': '+232 75 768996',
+  'contact.address': 'Freetown Business Forum, 12C Lumley Road, Freetown, Sierra Leone',
+  'home.heroStatement': 'Delivering ideas that',
+  'home.heroWords': 'Inspire,Excite,Motivate',
+  'home.introHeading': 'We *connect* Sierra Leonean enterprise with the world',
+  'home.introBody':
+    'The Freetown Business Forum brings investors, government and enterprise ' +
+    'into one room. Our bi-annual forum, the national business directory and ' +
+    'the Deal Room give members a standing route to capital, partners and ' +
+    "policy — and give the world a way in to Sierra Leone's fastest-growing " +
+    'sectors.',
 }
 
 export function setting(

@@ -44,6 +44,24 @@ const paths: Record<string, string> = {
     'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-4.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0-3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',
   shield:
     'M12 3 4 6v6c0 4.5 3.2 8.3 8 9 4.8-.7 8-4.5 8-9V6l-8-3Zm-2.5 9 2 2 4-4',
+  // Bulb, screw ring and contact, with five rays. The bulb is drawn smaller
+  // than the 24-unit box allows so the rays have room to be rays: at a 1.5
+  // stroke, a ray shorter than about three units renders as a
+  // dot between the round caps.
+  lightbulb:
+    'M12 5.2a4.4 4.4 0 0 1 2.8 7.8c-.5.4-.7.9-.7 1.5V16H9.9v-1.5c0-.6-.2-1.1-.7-1.5a4.4 4.4 0 0 1 2.8-7.8Zm-2.1 13.2h4.2m-3.4 2.4h2.6M12 3.7V0.6M16.2 5.4 18.4 3.2M7.8 5.4 5.6 3.2M17.9 9.6H21M6.1 9.6H3',
+
+  // Eyes as dotted segments rather than filled circles, as `fish` does — at
+  // this size a 0.01-long stroke with a round cap is the dot, and it stays a
+  // dot at every scale the site uses the icon at.
+  smile:
+    'M12 21.5a9.5 9.5 0 1 0 0-19 9.5 9.5 0 0 0 0 19ZM8.3 13.9a4.4 4.4 0 0 0 7.4 0M9.2 9.6h.01M14.8 9.6h.01',
+
+  // Body, window, two fins and three exhaust ticks. The fins meet the body at
+  // its bottom corners rather than crossing it: at the 1.5 stroke the hero
+  // uses, overlapping strokes read as a blot at that size.
+  rocket:
+    'M12 2.4c2.7 2.7 4.1 6 4.1 9.6v4.3H7.9v-4.3c0-3.6 1.4-6.9 4.1-9.6Zm0 8.2a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM7.9 12.7 5.4 15.2a2 2 0 0 0-.6 1.4v2l3.1-2.3m8.2-3.6 2.5 2.5a2 2 0 0 1 .6 1.4v2l-3.1-2.3M9.9 18v2.2m4.2-2.2v2.2M12 18.4v3.1',
 
   // Interface
   calendar:
@@ -56,6 +74,11 @@ const paths: Record<string, string> = {
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 5 5',
   download: 'M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2',
   arrowRight: 'M4 12h15m0 0-6-6m6 6-6 6',
+  // Reordering and adding rows in the admin editors, where an arrow that
+  // points the way the row moves reads more plainly than a chevron.
+  arrowUp: 'M12 20V5m0 0-6 6m6-6 6 6',
+  arrowDown: 'M12 4v15m0 0 6-6m-6 6-6-6',
+  plus: 'M12 5v14M5 12h14',
   check: 'm4 12 5 5L20 6',
   chevronDown: 'm6 9 6 6 6-6',
   menu: 'M4 6h16M4 12h16M4 18h16',

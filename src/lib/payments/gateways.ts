@@ -422,7 +422,7 @@ class OfflineGateway implements PaymentGateway {
       kind: 'OFFLINE',
       providerRef: input.reference,
       instructions:
-        'An invoice has been issued. Quote your reference when paying, then email the remittance advice to finance@slbf.sl.',
+        'An invoice has been issued. Quote your reference when paying, then email the remittance advice to finance@fbf.sl.',
     }
   }
 

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { parseMoneyToMinor } from '@/lib/money'
 import {
   AccessRequestStatus,
   ApplicationStatus,
@@ -122,12 +123,114 @@ export function optionalText(max = 2000) {
     .optional()
 }
 
+/**
+ * An enum field that a form may leave blank.
+ *
+ * `enumOf(...).optional()` accepts `undefined` but not `""`, and a `<select>`
+ * whose "Any" option carries an empty value submits `""` — so the plain
+ * `.optional()` turns "no answer" into a validation error on a field the form
+ * said was optional. This mirrors `optionalText`: empty becomes null and stays
+ * out of the row.
+ */
+export function optionalEnum<T extends Record<string, string>>(
+  source: T,
+  message: string,
+) {
+  return z
+    .union([enumOf(source, message), z.literal('')])
+    .transform((v) => (v === '' ? null : (v as T[keyof T])))
+    .nullable()
+    .optional()
+}
+
+/**
+ * A whole-number field that a form may leave blank.
+ *
+ * `z.coerce.number()` turns "" into 0, which would record a business with no
+ * staff as a business with zero staff — a different claim. An empty field
+ * becomes null and stays out of the row.
+ */
+export function optionalCount(max: number) {
+  return z
+    .string()
+    .trim()
+    .transform((value, ctx) => {
+      if (value === '') return null
+
+      const parsed = Number(value)
+      if (!Number.isInteger(parsed) || parsed < 0 || parsed > max) {
+        ctx.addIssue({ code: 'custom', message: 'Enter a whole number.' })
+        return z.NEVER
+      }
+
+      return parsed
+    })
+    .nullable()
+    .optional()
+}
+
 /** Money always arrives as an integer count of minor units. */
 export const amountMinorSchema = z
   .number()
   .int('Enter a whole amount.')
   .min(0, 'An amount cannot be negative.')
   .max(1_000_000_000_000, 'That amount is too large.')
+
+/**
+ * A money field as a person types it into a form.
+ *
+ * `amountMinorSchema` above is the storage contract — an integer count of
+ * minor units — and it is what an API or the admin panel sends. A form does
+ * not: a delegate types "250,000" meaning two hundred and fifty thousand
+ * leones, and FormData delivers that as a string. Parsing it here is what
+ * keeps the "no float touches a price" rule intact, because the conversion to
+ * minor units happens once, at the boundary, rather than in each action.
+ *
+ * Both supported currencies have two minor units, so the conversion does not
+ * depend on which one the form also submitted. A third currency with a
+ * different subdivision would have to make this a per-currency parse.
+ */
+const moneyFieldSchema = z
+  .string()
+  .trim()
+  .transform((value, ctx) => {
+    const minor = parseMoneyToMinor(value)
+
+    if (minor === null) {
+      ctx.addIssue({ code: 'custom', message: 'Enter an amount, in figures.' })
+      return z.NEVER
+    }
+
+    if (minor < 0) {
+      ctx.addIssue({ code: 'custom', message: 'An amount cannot be negative.' })
+      return z.NEVER
+    }
+
+    if (minor > 1_000_000_000_000) {
+      ctx.addIssue({ code: 'custom', message: 'That amount is too large.' })
+      return z.NEVER
+    }
+
+    return minor
+  })
+
+/** The same, but an empty field means "not given" rather than an error. */
+const optionalMoneyFieldSchema = z
+  .string()
+  .trim()
+  .transform((value, ctx) => {
+    if (value === '') return null
+    const minor = parseMoneyToMinor(value)
+
+    if (minor === null || minor < 0) {
+      ctx.addIssue({ code: 'custom', message: 'Enter an amount, in figures.' })
+      return z.NEVER
+    }
+
+    return minor
+  })
+  .nullable()
+  .optional()
 
 export const currencySchema = z.enum(['SLE', 'USD'], {
   message: 'Choose a supported currency.',
@@ -142,11 +245,57 @@ export const checkboxSchema = z
   .union([z.literal('on'), z.literal('true'), z.literal(''), z.undefined()])
   .transform((v) => v === 'on' || v === 'true')
 
+/**
+ * A `datetime-local` value, read as UTC.
+ *
+ * The control submits "2026-11-12T09:00" with no zone attached, and passing
+ * that to `new Date` applies the *server's* zone — which would silently move
+ * every session on the agenda the moment this app is deployed anywhere but
+ * Freetown, and move it again if the host changed its zone. Appending the Z
+ * pins it to the UTC that lib/format renders in (NFR-11), so what the event
+ * manager typed is what the programme shows. `toDateTimeInput` there is the
+ * other half of this pair.
+ *
+ * Seconds are optional because some browsers include them and most do not.
+ */
+export const utcDateTimeSchema = z
+  .string()
+  .trim()
+  .regex(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/,
+    'Enter a valid date and time.',
+  )
+  .transform((value) => new Date(`${value.length === 16 ? value + ':00' : value}Z`))
+  .refine((date) => !Number.isNaN(date.getTime()), 'Enter a valid date and time.')
+
+/**
+ * Manual display order. Absent or blank means 0, which is what an event
+ * manager who never touches the field should get — the list then falls back to
+ * ordering by time or name, which is already the sensible answer.
+ */
+export const sortOrderSchema = z
+  .union([z.string(), z.number(), z.undefined()])
+  .transform((value) => {
+    if (value === undefined || value === '') return 0
+    return Number(value)
+  })
+  .pipe(
+    z
+      .number()
+      .int('Enter a whole number.')
+      .min(0, 'Order cannot be negative.')
+      .max(9999, 'That order is too high.'),
+  )
+
 // ── Enum schemas ────────────────────────────────────────────────────────────
 
 export const roleSchema = enumOf(Role, 'Choose a valid role.')
 export const memberStatusSchema = enumOf(MemberStatus, 'Choose a valid status.')
 export const businessSizeSchema = enumOf(BusinessSize, 'Choose a business size.')
+export const optionalBusinessSize = optionalEnum(
+  BusinessSize,
+  'Choose a business size.',
+)
 export const sessionTypeSchema = enumOf(SessionType, 'Choose a session type.')
 export const speakerRoleSchema = enumOf(SpeakerRole, 'Choose a speaker role.')
 export const sponsorTierSchema = enumOf(SponsorTier, 'Choose a sponsor tier.')
@@ -167,6 +316,10 @@ export const paymentPurposeSchema = enumOf(
   'Choose what the payment is for.',
 )
 export const discountTypeSchema = enumOf(DiscountType, 'Choose a discount type.')
+export const optionalOpportunityStage = optionalEnum(
+  OpportunityStage,
+  'Choose a stage.',
+)
 export const opportunityStageSchema = enumOf(
   OpportunityStage,
   'Choose a business stage.',
@@ -333,7 +486,7 @@ export const membershipApplicationSchema = z.object({
   phone: phoneSchema,
   sectorId: optionalText(40),
   region: optionalText(80),
-  size: businessSizeSchema.optional(),
+  size: optionalBusinessSize,
   website: optionalUrlSchema.optional(),
   shortDescription: z
     .string()
@@ -347,7 +500,7 @@ export const directoryListingSchema = z.object({
   businessName: z.string().trim().min(2, 'Enter your business name.').max(200),
   sectorId: optionalText(40),
   region: optionalText(80),
-  size: businessSizeSchema.optional(),
+  size: optionalBusinessSize,
   shortDescription: z
     .string()
     .trim()
@@ -382,7 +535,7 @@ export const directorySearchSchema = z.object({
   q: optionalText(120),
   sector: optionalText(40),
   region: optionalText(80),
-  size: businessSizeSchema.optional(),
+  size: optionalBusinessSize,
   page: z.coerce.number().int().min(1).max(1000).default(1),
 })
 
@@ -396,7 +549,7 @@ export const fundingApplicationSchema = z.object({
   phone: phoneSchema,
   sectorId: optionalText(40),
   region: optionalText(80),
-  amountRequestedMinor: amountMinorSchema.refine(
+  amountRequestedMinor: moneyFieldSchema.refine(
     (v) => v > 0,
     'Enter the amount you are seeking.',
   ),
@@ -412,9 +565,9 @@ export const fundingApplicationSchema = z.object({
     .trim()
     .min(50, 'Explain how the funds would be used — at least 50 characters.')
     .max(5000),
-  yearsTrading: z.coerce.number().int().min(0).max(200).optional(),
-  employees: z.coerce.number().int().min(0).max(1_000_000).optional(),
-  annualRevenueMinor: amountMinorSchema.optional(),
+  yearsTrading: optionalCount(200),
+  employees: optionalCount(1_000_000),
+  annualRevenueMinor: optionalMoneyFieldSchema,
 })
 
 export const investorAccessRequestSchema = z.object({
@@ -425,7 +578,7 @@ export const investorAccessRequestSchema = z.object({
   phone: optionalPhoneSchema.optional(),
   country: optionalText(80),
   investmentFocus: optionalText(500),
-  ticketSizeMinor: amountMinorSchema.optional(),
+  ticketSizeMinor: optionalMoneyFieldSchema,
   currency: currencySchema.default('USD'),
   message: optionalText(2000),
 })
@@ -434,7 +587,7 @@ export const opportunitySearchSchema = z.object({
   q: optionalText(120),
   sector: optionalText(40),
   region: optionalText(80),
-  stage: opportunityStageSchema.optional(),
+  stage: optionalOpportunityStage,
   page: z.coerce.number().int().min(1).max(1000).default(1),
 })
 
@@ -490,24 +643,125 @@ export const articleSchema = z.object({
   metaDescription: optionalText(300),
 })
 
+/**
+ * A latitude or longitude the form may leave blank.
+ *
+ * Empty has to become null rather than 0: nought and nought is a real place in
+ * the Gulf of Guinea, and the venue map draws its pin wherever it is told, so a
+ * blank pair coerced to zero would move the Bintumani four hundred miles out to
+ * sea rather than simply drawing no map.
+ */
+function optionalCoordinate(limit: number) {
+  return z
+    .string()
+    .trim()
+    .transform((value, ctx) => {
+      if (value === '') return null
+
+      const parsed = Number(value)
+
+      if (!Number.isFinite(parsed) || Math.abs(parsed) > limit) {
+        ctx.addIssue({ code: 'custom', message: 'Enter a valid coordinate.' })
+        return z.NEVER
+      }
+
+      return parsed
+    })
+    .nullable()
+    .optional()
+}
+
+/**
+ * A textarea holding one item per line, stored as a JSON array column.
+ *
+ * Blank lines are dropped instead of being kept as empty items: an editor
+ * separates points with a blank line as often as not, and an empty bullet on
+ * the events page is a rendering fault nobody typed.
+ */
+export function linesSchema(maxLines: number, maxLength = 300) {
+  return z
+    .union([z.string(), z.undefined()])
+    .transform((value) =>
+      (value ?? '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
+    )
+    .pipe(
+      z
+        .array(z.string().max(maxLength, 'One of those lines is too long.'))
+        .max(maxLines, `Keep this to ${maxLines} lines.`),
+    )
+}
+
+/**
+ * Where a media file lives: a path this site serves, or a full address
+ * somewhere else (§4.14).
+ *
+ * Both forms are needed and they are treated differently downstream — the
+ * homepage plays a `/`-relative film in place and links a hosted one out to its
+ * platform — so the difference is preserved rather than normalised away.
+ *
+ * Two things are refused. A bare `brand/hero/one.jpg` would resolve against
+ * whatever page happened to embed it, so it means nothing on its own. A
+ * protocol-relative `//example.com/x.jpg` looks like a path and is not one: it
+ * is another origin, and an address that reads as local while loading from
+ * elsewhere is the one an editor cannot check by eye.
+ */
+export const assetUrlSchema = z
+  .string()
+  .trim()
+  .min(1, 'Enter the file address.')
+  .max(500, 'That address is too long.')
+  .refine(
+    (value) =>
+      (value.startsWith('/') && !value.startsWith('//')) ||
+      /^https?:\/\//i.test(value),
+    'Use a path beginning with / for a file on this site, or a full https:// address.',
+  )
+
+export const optionalAssetUrlSchema = z
+  .union([assetUrlSchema, z.literal('')])
+  .transform((value) => (value === '' ? null : value))
+  .nullable()
+
+/**
+ * The forum itself (§4.4).
+ *
+ * Start and end are `datetime-local`, read as UTC by the same rule the
+ * programme uses, rather than plain dates. The forum opens at half past eight
+ * and closes at five, the agenda derives each session's day number by comparing
+ * its date with the event's start, and a start silently rounded to midnight is
+ * a start that no longer says when the doors open.
+ *
+ * `whoAttendsJson` is deliberately not offered here: nothing on the public site
+ * reads it yet, and a field an editor fills in that never appears anywhere is
+ * worse than a field that is missing.
+ */
 export const eventSchema = z
   .object({
     name: z.string().trim().min(3, 'Enter the event name.').max(200),
     slug: slugSchema,
     theme: z.string().trim().min(3, 'Enter the event theme.').max(300),
     tagline: optionalText(300),
-    startDate: z.coerce.date({ message: 'Enter a valid start date.' }),
-    endDate: z.coerce.date({ message: 'Enter a valid end date.' }),
+    startDate: utcDateTimeSchema,
+    endDate: utcDateTimeSchema,
     venueName: z.string().trim().min(2, 'Enter the venue.').max(200),
     venueAddress: z.string().trim().min(5, 'Enter the venue address.').max(300),
     city: z.string().trim().max(120).default('Freetown'),
     country: z.string().trim().max(120).default('Sierra Leone'),
     venueMapUrl: optionalUrlSchema.optional(),
+    venueLat: optionalCoordinate(90),
+    venueLng: optionalCoordinate(180),
     description: optionalText(10_000),
-    expectedDelegates: z.coerce.number().int().min(0).max(1_000_000).optional(),
-    heroImageUrl: optionalUrlSchema.optional(),
-    brochureUrl: optionalUrlSchema.optional(),
-    prospectusUrl: optionalUrlSchema.optional(),
+    objectives: linesSchema(12, 300),
+    // Not z.coerce.number(): that reads a blank field as nought expected
+    // delegates, which the events page would print as "0 delegates" — a claim,
+    // and a worse one than saying nothing.
+    expectedDelegates: optionalCount(1_000_000),
+    heroImageUrl: optionalAssetUrlSchema.optional(),
+    brochureUrl: optionalAssetUrlSchema.optional(),
+    prospectusUrl: optionalAssetUrlSchema.optional(),
     isCurrent: checkboxSchema,
     isPublished: checkboxSchema,
     registrationOpen: checkboxSchema,
@@ -517,6 +771,53 @@ export const eventSchema = z
     path: ['endDate'],
   })
 
+export const mediaCollectionSchema = z.object({
+  name: z.string().trim().min(2, 'Enter a name.').max(160),
+  slug: slugSchema,
+  kind: mediaKindSchema,
+  description: optionalText(500),
+  coverImageUrl: optionalAssetUrlSchema.optional(),
+  sortOrder: sortOrderSchema,
+  isPublished: checkboxSchema,
+})
+
+/**
+ * One file in a collection.
+ *
+ * `kind` is absent on purpose: an asset takes the kind of the collection it
+ * sits in. The public pages query on both — the gallery reads GALLERY assets of
+ * the `forum-gallery` collection — so a photograph filed as a download in a
+ * gallery would simply vanish, and the only way to make that unrepresentable is
+ * not to ask twice.
+ *
+ * `mimeType` and `sizeBytes` are absent for the same reason: they are read from
+ * the file itself in lib/actions/admin-media rather than typed.
+ */
+export const mediaAssetSchema = z.object({
+  collectionId: z.string().min(1, 'Choose a collection.'),
+  url: assetUrlSchema,
+  title: optionalText(200),
+  altText: optionalText(300),
+  caption: optionalText(500),
+  thumbnailUrl: optionalAssetUrlSchema.optional(),
+  sortOrder: sortOrderSchema,
+  isPublic: checkboxSchema,
+})
+
+export const trackSchema = z.object({
+  eventId: z.string().min(1, 'Choose an event.'),
+  name: z.string().trim().min(2, 'Enter a track name.').max(120),
+  // A hex colour rather than a palette name: the value is rendered as an
+  // inline swatch beside sessions on the agenda, so it has to be a colour the
+  // browser understands, and `<input type="color">` submits exactly this form.
+  colour: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Pick a colour.')
+    .default('#0F7A3D'),
+  sortOrder: sortOrderSchema,
+})
+
 export const eventSessionSchema = z
   .object({
     eventId: z.string().min(1, 'Choose an event.'),
@@ -524,17 +825,35 @@ export const eventSessionSchema = z
     title: z.string().trim().min(3, 'Enter a session title.').max(300),
     slug: slugSchema,
     description: optionalText(10_000),
-    dayNumber: z.coerce.number().int().min(1).max(30).default(1),
-    startsAt: z.coerce.date({ message: 'Enter a valid start time.' }),
-    endsAt: z.coerce.date({ message: 'Enter a valid end time.' }),
+    // dayNumber is deliberately absent: it is derived from startsAt against
+    // the event's own start date in lib/actions/admin-programme, because a day
+    // number typed independently of the date is a day number that will one day
+    // disagree with it — and the agenda's day tabs label themselves from the
+    // date while grouping by the number, so the disagreement is visible.
+    startsAt: utcDateTimeSchema,
+    endsAt: utcDateTimeSchema,
     room: optionalText(120),
     sessionType: sessionTypeSchema.default(SessionType.PANEL),
+    sortOrder: sortOrderSchema,
     isPublished: checkboxSchema,
   })
   .refine((data) => data.endsAt > data.startsAt, {
     message: 'A session must end after it starts.',
     path: ['endsAt'],
   })
+
+/**
+ * One speaker's place on one session.
+ *
+ * Assignment is its own small schema rather than an array folded into the
+ * session form: a panel is built up a name at a time, and each addition is a
+ * separate decision with its own role attached.
+ */
+export const sessionSpeakerSchema = z.object({
+  sessionId: z.string().min(1, 'Choose a session.'),
+  speakerId: z.string().min(1, 'Choose a speaker.'),
+  role: speakerRoleSchema.default(SpeakerRole.SPEAKER),
+})
 
 export const speakerSchema = z.object({
   fullName: z.string().trim().min(2, "Enter the speaker's name.").max(200),
@@ -548,6 +867,7 @@ export const speakerSchema = z.object({
   linkedinUrl: optionalUrlSchema.optional(),
   twitterUrl: optionalUrlSchema.optional(),
   websiteUrl: optionalUrlSchema.optional(),
+  sortOrder: sortOrderSchema,
   isFeatured: checkboxSchema,
   isPublished: checkboxSchema,
 })

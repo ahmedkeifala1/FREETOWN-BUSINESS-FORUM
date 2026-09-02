@@ -24,6 +24,7 @@ import type { FieldErrors } from '@/lib/validation'
 export function Field({
   label,
   name,
+  htmlFor,
   error,
   hint,
   required,
@@ -32,15 +33,19 @@ export function Field({
 }: {
   label: string
   name: string
+  /** Overrides the control id the label points at — see `controlProps`. */
+  htmlFor?: string
   error?: string
   hint?: string
   required?: boolean
   children: ReactNode
   className?: string
 }) {
+  const key = htmlFor ?? name
+
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={name} className="block text-sm font-medium text-ink-900">
+      <label htmlFor={key} className="block text-sm font-medium text-ink-900">
         {label}
         {required && (
           <span className="ml-1 text-red-700" aria-hidden="true">
@@ -55,7 +60,7 @@ export function Field({
       </label>
 
       {hint && (
-        <p id={`${name}-hint`} className="text-xs text-ink-600">
+        <p id={`${key}-hint`} className="text-xs text-ink-600">
           {hint}
         </p>
       )}
@@ -64,7 +69,7 @@ export function Field({
 
       {error && (
         <p
-          id={`${name}-error`}
+          id={`${key}-error`}
           className="flex items-start gap-1.5 text-sm text-red-700"
         >
           <Icon name="close" className="mt-0.5 size-3.5 shrink-0" />
@@ -83,14 +88,28 @@ const CONTROL =
 const CONTROL_OK = 'border-ink-300 focus:border-forest-600'
 const CONTROL_BAD = 'border-red-500 focus:border-red-600'
 
-/** Wires aria-invalid and aria-describedby from the presence of an error. */
-function controlProps(name: string, error?: string, hint?: string) {
+/**
+ * Wires aria-invalid and aria-describedby from the presence of an error.
+ *
+ * The element id defaults to the field name, which is what a single form on a
+ * page wants. It can be overridden because a page may carry several forms with
+ * the same field in each — a review queue with a status select per card — and
+ * duplicate ids would point every label at the first one.
+ */
+function controlProps(
+  name: string,
+  error?: string,
+  hint?: string,
+  id?: string,
+) {
+  const key = id ?? name
+
   const describedBy =
-    [hint && `${name}-hint`, error && `${name}-error`].filter(Boolean).join(' ') ||
+    [hint && `${key}-hint`, error && `${key}-error`].filter(Boolean).join(' ') ||
     undefined
 
   return {
-    id: name,
+    id: key,
     name,
     'aria-invalid': error ? true : undefined,
     'aria-describedby': describedBy,
@@ -101,15 +120,16 @@ export function Input({
   name,
   error,
   hint,
+  id,
   className,
   ...props
-}: { name: string; error?: string; hint?: string } & Omit<
+}: { name: string; error?: string; hint?: string; id?: string } & Omit<
   ComponentProps<'input'>,
   'name' | 'id'
 >) {
   return (
     <input
-      {...controlProps(name, error, hint)}
+      {...controlProps(name, error, hint, id)}
       className={cn(CONTROL, error ? CONTROL_BAD : CONTROL_OK, className)}
       {...props}
     />
@@ -120,17 +140,18 @@ export function Textarea({
   name,
   error,
   hint,
+  id,
   className,
   rows = 5,
   ...props
-}: { name: string; error?: string; hint?: string } & Omit<
+}: { name: string; error?: string; hint?: string; id?: string } & Omit<
   ComponentProps<'textarea'>,
   'name' | 'id'
 >) {
   return (
     <textarea
       rows={rows}
-      {...controlProps(name, error, hint)}
+      {...controlProps(name, error, hint, id)}
       className={cn(CONTROL, error ? CONTROL_BAD : CONTROL_OK, className)}
       {...props}
     />
@@ -141,16 +162,17 @@ export function Select({
   name,
   error,
   hint,
+  id,
   className,
   children,
   ...props
-}: { name: string; error?: string; hint?: string } & Omit<
+}: { name: string; error?: string; hint?: string; id?: string } & Omit<
   ComponentProps<'select'>,
   'name' | 'id'
 >) {
   return (
     <select
-      {...controlProps(name, error, hint)}
+      {...controlProps(name, error, hint, id)}
       className={cn(
         CONTROL,
         error ? CONTROL_BAD : CONTROL_OK,

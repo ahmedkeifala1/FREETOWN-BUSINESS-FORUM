@@ -16,7 +16,14 @@ import { cn } from '@/lib/cn'
  * targets", WCAG 2.5.5).
  */
 
-type Variant = 'primary' | 'secondary' | 'accent' | 'outline' | 'ghost' | 'danger'
+type Variant =
+  | 'primary'
+  | 'secondary'
+  | 'accent'
+  | 'ember'
+  | 'outline'
+  | 'ghost'
+  | 'danger'
 type Size = 'sm' | 'md' | 'lg'
 
 const VARIANTS: Record<Variant, string> = {
@@ -27,6 +34,13 @@ const VARIANTS: Record<Variant, string> = {
   // The accent is reserved for the single most important CTA on a view (§3.2).
   accent:
     'bg-gold-600 text-white hover:bg-gold-700 active:bg-gold-800 shadow-sm',
+  // The homepage hero only (§4.2), whose call to action is red on the
+  // reference page the secretariat asked it to follow. A variant rather than
+  // red utilities layered over `accent`: `cn` does not resolve conflicting
+  // Tailwind classes, so which background won would depend on the order the
+  // stylesheet happened to emit them in.
+  ember:
+    'bg-ember-500 text-white hover:bg-ember-600 active:bg-ember-700 shadow-sm',
   outline:
     'border border-ink-300 bg-white text-ink-900 hover:border-forest-600 hover:text-forest-700 active:bg-forest-50',
   ghost: 'text-ink-700 hover:bg-ink-100 hover:text-ink-950 active:bg-ink-200',

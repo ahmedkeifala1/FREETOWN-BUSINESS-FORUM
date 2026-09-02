@@ -6,66 +6,37 @@
  * drift apart.
  *
  * The six top-level items and their order follow the reference site
- * (londonbusinessforum.com). Where the forum has content the reference has no
- * name for, it is nested rather than dropped:
+ * (londonbusinessforum.com), and so does the shape of the list: it is flat.
+ * Every item in the header is a link to a page, and no item opens a menu.
  *
- *  - the Deal Room and the business directory sit under Events and Membership,
- *    because that is where a visitor is when they need them;
+ *  - Events, Membership, Learning Hub and About are plain links rather than
+ *    menus, at the secretariat's request. Their inner pages — the agenda, the
+ *    speakers, the sponsors and the venue; the tiers and the application; the
+ *    sector guides, the doing-business guide, the downloads and the
+ *    recordings; leadership, governance and partners — are reached from the
+ *    section's own landing page and from its footer column;
+ *  - the Deal Room therefore has no place in the header. It is reached from
+ *    the homepage, from the footer and from the portal's membership page;
  *  - Learning Hub — the reference's on-demand library — carries the forum's
  *    sector guides, the doing-business guide and the downloads, which is the
  *    same job done with the material this forum actually has.
+ *
+ * A flat sitemap is why `NavItem` has no `children`. Adding one back would
+ * mean the dropdown as well: the header renders what this file describes, and
+ * a nested item it could not render would be a page silently missing from the
+ * navigation.
  */
 
 export type NavItem = {
   label: string
   href: string
-  children?: NavItem[]
 }
 
 export const MAIN_NAV: NavItem[] = [
-  {
-    label: 'Membership',
-    href: '/membership',
-    children: [
-      { label: 'Why join', href: '/membership' },
-      { label: 'Tiers & pricing', href: '/membership/tiers' },
-      { label: 'Apply or renew', href: '/membership/apply' },
-      { label: 'Business directory', href: '/directory' },
-    ],
-  },
-  {
-    label: 'Events',
-    href: '/events',
-    children: [
-      { label: 'Overview & theme', href: '/events' },
-      { label: 'Agenda', href: '/events/agenda' },
-      { label: 'Speakers', href: '/events/speakers' },
-      { label: 'Deal Room', href: '/deal-room' },
-      { label: 'Sponsors & exhibitors', href: '/events/sponsors' },
-      { label: 'Venue & travel', href: '/events/venue' },
-      { label: 'Register', href: '/register' },
-    ],
-  },
-  {
-    label: 'Learning Hub',
-    href: '/learning-hub',
-    children: [
-      { label: 'Sector guides', href: '/learning-hub/sectors' },
-      { label: 'Doing business guide', href: '/learning-hub/doing-business' },
-      { label: 'Reports & downloads', href: '/learning-hub/downloads' },
-      { label: 'Session recordings', href: '/learning-hub/recordings' },
-    ],
-  },
-  {
-    label: 'About',
-    href: '/about',
-    children: [
-      { label: 'Vision & mandate', href: '/about' },
-      { label: 'Leadership', href: '/about/leadership' },
-      { label: 'Governance', href: '/about/governance' },
-      { label: 'Partners', href: '/about/partners' },
-    ],
-  },
+  { label: 'Membership', href: '/membership' },
+  { label: 'Events', href: '/events' },
+  { label: 'Learning Hub', href: '/learning-hub' },
+  { label: 'About', href: '/about' },
   { label: 'Contact Us', href: '/contact' },
   { label: 'Blog', href: '/blog' },
 ]
@@ -105,6 +76,10 @@ export const FOOTER_NAV: { heading: string; items: NavItem[] }[] = [
     items: [
       { label: 'Vision & mandate', href: '/about' },
       { label: 'Leadership', href: '/about/leadership' },
+      // Governance was reachable from the header menu and nowhere else in the
+      // chrome. With the menu gone it takes the place in this column that the
+      // other three About pages already had.
+      { label: 'Governance', href: '/about/governance' },
       { label: 'Partners', href: '/about/partners' },
       { label: 'Blog', href: '/blog' },
       { label: 'Contact Us', href: '/contact' },

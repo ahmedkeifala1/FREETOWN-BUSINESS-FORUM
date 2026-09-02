@@ -1,12 +1,6 @@
 import type { Metadata } from 'next'
 
-import { ButtonLink } from '@/components/ui/button'
-import {
-  Breadcrumbs,
-  Container,
-  CtaBand,
-  Section,
-} from '@/components/ui/layout'
+import { Breadcrumbs, Container } from '@/components/ui/layout'
 import { cn } from '@/lib/cn'
 import { db } from '@/lib/db'
 import { paragraphs } from '@/lib/format'
@@ -15,15 +9,25 @@ import { getPageBlocks, getSettings, setting } from '@/lib/settings'
 /**
  * About — vision, mandate and the forum's story (SDR §4.3).
  *
- * The page is built as a narrative rather than a fact sheet: a short statement
- * of what the forum is for, then the institutional history told year by year in
- * alternating split panels. A visitor deciding whether to trust the forum with
- * a registration fee or a membership subscription is really asking "how long
- * has this been going and what has it actually done", and a timeline answers
- * that in a way a mission statement cannot.
+ * Two things, in the order the reference site puts them
+ * (londonbusinessforum.com/about): a statement of what the forum is and what
+ * it is for, and then the institutional history told year by year in
+ * alternating split panels. Nothing else. A visitor deciding whether to trust
+ * the forum with a registration fee or a membership subscription is really
+ * asking "how long has this been going and what has it actually done", and a
+ * timeline answers that in a way a fact sheet cannot.
  *
- * Leadership, governance and partners each have their own route in the nav, so
- * they are not duplicated here — this page carries the prose and the story.
+ * The reference's About page ends at the last year of its timeline, and so
+ * does this one, at the secretariat's request. Two things §4.3 lists are
+ * therefore deliberately absent and must not be reinstated as oversights:
+ *
+ *  - the vision and the mandate are not a band of their own. They are the
+ *    second and third paragraphs of the opening statement, which is the whole
+ *    of the reference's own opening — the prose §4.3 asks for is all present,
+ *    it is simply read as one statement rather than two labelled columns;
+ *  - there is no CTA band and no onward set of links to leadership, governance
+ *    and partners. Those three pages are reached from the About column of the
+ *    footer, which carries all four routes on every page of the site.
  *
  * All copy is read from the database: the opening blocks from the `about` CMS
  * page, the timeline from the `milestones` table (§4.3, FR-01).
@@ -65,30 +69,28 @@ export default async function AboutPage() {
       />
 
       <AboutHeader settings={settings} blocks={blocks} />
-      <VisionAndMandate blocks={blocks} />
       <Story milestones={milestones} />
-
-      <CtaBand
-        title="Join the forum"
-        lead="Membership carries a directory listing, member rates on registration, access to the Deal Room and a standing seat in the dialogue with government."
-      >
-        <ButtonLink href="/membership/apply" variant="accent" size="lg">
-          Become a member
-        </ButtonLink>
-        <ButtonLink
-          href="/register"
-          size="lg"
-          className="border border-white/30 bg-white/10 text-white hover:bg-white/20 active:bg-white/25"
-        >
-          Register to attend
-        </ButtonLink>
-      </CtaBand>
     </>
   )
 }
 
-// ── 1. Page header ──────────────────────────────────────────────────────────
+// ── 1. The opening statement ────────────────────────────────────────────────
 
+/**
+ * The headline and the statement under it — the whole of the page before the
+ * timeline starts.
+ *
+ * Three blocks read as one piece of prose. `intro` says what the forum is,
+ * `vision` says what it is for, and `mandate` is the list of things that
+ * commits it to; they are set at descending weight so the eye is carried down
+ * them in that order rather than made to choose between two columns. An
+ * unlabelled statement is what the reference does, and labels would be the
+ * fact sheet this page is deliberately not.
+ *
+ * Any of the three may be missing — the blocks are CMS rows and an editor may
+ * clear one — so each is rendered only when it has copy, and the intro falls
+ * back to the site tagline rather than leaving the page with a bare heading.
+ */
 function AboutHeader({
   settings,
   blocks,
@@ -97,7 +99,7 @@ function AboutHeader({
   blocks: Record<string, string>
 }) {
   return (
-    <section className="bg-white pt-10 pb-4 sm:pt-14 sm:pb-6">
+    <section className="bg-white pt-10 pb-12 sm:pt-14 sm:pb-16">
       <Container>
         <div className="max-w-3xl">
           <h1 className="text-4xl leading-[1.1] text-ink-950 sm:text-5xl lg:text-6xl">
@@ -107,54 +109,27 @@ function AboutHeader({
           <p className="mt-6 text-lg leading-relaxed text-ink-700 sm:text-xl">
             {blocks.intro ?? setting(settings, 'site.tagline')}
           </p>
+
+          {blocks.vision && (
+            <p className="mt-6 font-display text-xl font-semibold leading-snug text-ink-950 sm:text-2xl">
+              {blocks.vision}
+            </p>
+          )}
+
+          {blocks.mandate && (
+            <div className="mt-6 space-y-4 leading-relaxed text-ink-700">
+              {paragraphs(blocks.mandate).map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          )}
         </div>
       </Container>
     </section>
   )
 }
 
-// ── 2. Vision & mandate ─────────────────────────────────────────────────────
-
-/**
- * The two blocks the nav promises under "Vision & mandate". They sit side by
- * side on a wide screen and stack on a phone; the vision is a single sentence
- * and the mandate is the list of things that sentence commits the forum to.
- */
-function VisionAndMandate({ blocks }: { blocks: Record<string, string> }) {
-  if (!blocks.vision && !blocks.mandate) return null
-
-  return (
-    <Section tone="white" className="pt-8 sm:pt-10">
-      <div className="grid gap-8 border-t border-ink-200 pt-10 lg:grid-cols-2 lg:gap-14">
-        {blocks.vision && (
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-forest-700">
-              Our vision
-            </h2>
-            <p className="mt-4 font-display text-xl font-semibold leading-snug text-ink-950 sm:text-2xl">
-              {blocks.vision}
-            </p>
-          </div>
-        )}
-
-        {blocks.mandate && (
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-forest-700">
-              Our mandate
-            </h2>
-            <div className="mt-4 space-y-4 leading-relaxed text-ink-700">
-              {paragraphs(blocks.mandate).map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </Section>
-  )
-}
-
-// ── 3. Our story ────────────────────────────────────────────────────────────
+// ── 2. Our story ────────────────────────────────────────────────────────────
 
 function Story({ milestones }: { milestones: Milestone[] }) {
   if (milestones.length === 0) return null

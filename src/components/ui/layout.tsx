@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ElementType, ReactNode } from 'react'
 
+import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
 
 /**
@@ -310,5 +311,119 @@ export function EmptyState({
       )}
       {children && <div className="mt-6">{children}</div>}
     </div>
+  )
+}
+
+/**
+ * Numbered pagination for long listings (§4.11 "results as cards with
+ * pagination").
+ *
+ * Every page is a real address, and every control is a link rather than a
+ * button: page three of the agriculture filter is something a member can
+ * bookmark and paste into an email, the back button behaves the way the reader
+ * expects, and the whole thing works before hydration (NFR-01).
+ *
+ * The caller supplies `hrefFor` rather than a base URL, because each listing
+ * carries a different set of filters that have to survive the page change —
+ * only the caller knows what they are.
+ */
+export function Pagination({
+  page,
+  pageCount,
+  hrefFor,
+}: {
+  page: number
+  pageCount: number
+  hrefFor: (page: number) => string
+}) {
+  if (pageCount <= 1) return null
+
+  const pages = Array.from({ length: pageCount }, (_, index) => index + 1)
+
+  return (
+    <nav aria-label="Pagination" className="mt-12 flex justify-center">
+      <ul className="flex flex-wrap items-center gap-1.5">
+        <li>
+          <PageLink
+            href={hrefFor(page - 1)}
+            disabled={page === 1}
+            label="Previous page"
+          >
+            <Icon name="chevronRight" className="size-4 rotate-180" />
+          </PageLink>
+        </li>
+
+        {pages.map((n) => (
+          <li key={n}>
+            <PageLink href={hrefFor(n)} current={n === page} label={`Page ${n}`}>
+              {n}
+            </PageLink>
+          </li>
+        ))}
+
+        <li>
+          <PageLink
+            href={hrefFor(page + 1)}
+            disabled={page === pageCount}
+            label="Next page"
+          >
+            <Icon name="chevronRight" className="size-4" />
+          </PageLink>
+        </li>
+      </ul>
+    </nav>
+  )
+}
+
+/**
+ * One pagination control.
+ *
+ * A disabled control renders as a <span>, not a dimmed link: a link to the
+ * page before the first page is a dead control, and removing it from the tab
+ * order is the difference between a keyboard user landing somewhere and
+ * landing nowhere (NFR-09). The numeral is visible; the label it needs to be
+ * announced with is not.
+ */
+function PageLink({
+  href,
+  children,
+  current,
+  disabled,
+  label,
+}: {
+  href: string
+  children: ReactNode
+  current?: boolean
+  disabled?: boolean
+  label: string
+}) {
+  const classes = cn(
+    'inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg px-3 text-sm font-medium',
+    current
+      ? 'bg-forest-600 text-white'
+      : 'text-ink-700 ring-1 ring-inset ring-ink-300 hover:ring-forest-400',
+  )
+
+  if (disabled) {
+    return (
+      <span
+        aria-disabled="true"
+        className={cn(classes, 'cursor-not-allowed opacity-40')}
+      >
+        {children}
+        <span className="sr-only">{label}</span>
+      </span>
+    )
+  }
+
+  return (
+    <Link
+      href={href}
+      aria-current={current ? 'page' : undefined}
+      className={classes}
+    >
+      {children}
+      <span className="sr-only">{label}</span>
+    </Link>
   )
 }

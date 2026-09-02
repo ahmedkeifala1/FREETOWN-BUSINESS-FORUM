@@ -162,7 +162,7 @@ async function deliverEmail(
         authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        from: process.env.MAIL_FROM ?? 'no-reply@slbf.sl',
+        from: process.env.MAIL_FROM ?? 'no-reply@fbf.sl',
         to,
         subject,
         text: body,
@@ -173,6 +173,13 @@ async function deliverEmail(
       throw new Error(`Mail provider returned ${response.status}.`)
     }
     return true
+  }
+
+  // Anything other than the two known transports is a configuration
+  // mistake, not a silent no-op: swallowing it here would drop every
+  // receipt the forum sends while the outbox reported them as delivered.
+  if (mode !== 'log') {
+    throw new Error(`MAIL_MODE is "${mode}" — expected "log" or "http".`)
   }
 
   console.info(`[mail] to=${to} subject=${subject}\n${body}\n`)
@@ -206,6 +213,10 @@ async function deliverSms(to: string, body: string): Promise<boolean> {
     return true
   }
 
+  if (mode !== 'log') {
+    throw new Error(`SMS_MODE is "${mode}" — expected "log" or "http".`)
+  }
+
   console.info(`[sms] to=${to}\n${body}\n`)
   return true
 }
@@ -223,7 +234,7 @@ async function deliverSms(to: string, body: string): Promise<boolean> {
  */
 
 const SITE_URL = () =>
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://slbf.sl'
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fbf.sl'
 
 function signOff(): string {
   return `\n—\nFreetown Business Forum\n${SITE_URL()}`
@@ -301,7 +312,7 @@ Reference:  ${input.reference}
 Amount due: ${formatMoney(input.totalMinor, input.currency, { withCode: true })}
 
 Please quote reference ${input.reference} when paying, then email the remittance
-advice to finance@slbf.sl. We will confirm your place and issue your e-ticket as
+advice to finance@fbf.sl. We will confirm your place and issue your e-ticket as
 soon as the payment clears.${signOff()}`,
   })
 }

@@ -1,9 +1,11 @@
 import 'server-only'
 
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import { getCurrentUser, type SessionUser } from '@/lib/auth'
 import { Role } from '@/lib/enums'
+import { PATHNAME_HEADER } from '@/proxy'
 
 /**
  * Role-based access control (FR-04, §12).
@@ -19,6 +21,10 @@ export const Permission = {
   CONTENT_VIEW: 'content.view',
   CONTENT_EDIT: 'content.edit',
   CONTENT_PUBLISH: 'content.publish',
+  // Held by administrators alone. An editor can write, publish and hide;
+  // taking a page, an article or a file out of the library for good is not
+  // something the panel can undo, so it is not something the panel grants
+  // widely.
   CONTENT_DELETE: 'content.delete',
   // Event programme
   EVENT_VIEW: 'event.view',
@@ -126,6 +132,22 @@ export function userHas(
 // ── Guards ──────────────────────────────────────────────────────────────────
 
 /**
+ * The path the visitor actually asked for, stamped on by src/proxy.ts.
+ *
+ * A layout cannot ask which page is rendering beneath it, and these guards run
+ * in layouts. Falling back to the caller's hint keeps the guards working if the
+ * proxy is ever not in the path.
+ */
+async function requestedPath(fallback?: string): Promise<string | undefined> {
+  try {
+    const headerList = await headers()
+    return headerList.get(PATHNAME_HEADER) ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+/**
  * Require a signed-in user, sending anonymous visitors to the login page with
  * a return path so they land back where they were headed.
  */
@@ -135,9 +157,8 @@ export async function requireUser(options?: {
   const user = await getCurrentUser()
 
   if (!user) {
-    const next = options?.redirectTo
-      ? `?next=${encodeURIComponent(options.redirectTo)}`
-      : ''
+    const target = await requestedPath(options?.redirectTo)
+    const next = target ? `?next=${encodeURIComponent(target)}` : ''
     redirect(`/portal/login${next}`)
   }
 

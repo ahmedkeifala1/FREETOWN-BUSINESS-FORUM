@@ -4,30 +4,18 @@ import type { Metadata } from 'next'
 import { HeroMosaic, type MosaicTile } from '@/components/site/hero-mosaic'
 import { MembershipTabs, type MembershipTab } from '@/components/site/membership-tabs'
 import { NewsletterForm } from '@/components/site/newsletter-form'
-import { Testimonials } from '@/components/site/testimonials'
 import { ButtonLink } from '@/components/ui/button'
-import { Badge, Card, LinkCard, Stat } from '@/components/ui/card'
-import { Icon } from '@/components/ui/icon'
+import { Badge, LinkCard } from '@/components/ui/card'
+import { Icon, type IconName } from '@/components/ui/icon'
 import {
   CardGrid,
   Container,
-  CtaBand,
   Section,
   SectionHeading,
 } from '@/components/ui/layout'
 import { db } from '@/lib/db'
 import {
-  SESSION_TYPE_LABELS,
-  SPONSOR_TIER_ORDER,
-  SPONSOR_TIER_LABELS,
-  type SessionType,
-} from '@/lib/enums'
-import {
-  daysUntil,
-  formatDateRange,
   formatDateShort,
-  formatTime,
-  initials,
   parseJsonColumn,
   truncate,
 } from '@/lib/format'
@@ -37,17 +25,34 @@ import { getCurrentEvent, getSectors, getSettings, setting } from '@/lib/setting
 /**
  * Homepage (SDR §4.2).
  *
- * Every band on this page is read from the database — the hero, the stats, the
- * endorsements, the programme, the speaker wall, the sector grid, the news
- * cards and the sponsor strip (FR-01). Nothing here is hard-coded copy except
- * the section headings, which are structural rather than editorial.
+ * Every band on this page is read from the database — the hero, the sector
+ * grid, the Deal Room and membership teasers and the news cards (FR-01).
+ * Nothing here is hard-coded copy except the section headings, which are
+ * structural rather than editorial.
  *
  * The layout follows the reference the secretariat gave us
- * (londonbusinessforum.com): a statement hero with a cycling phrase,
- * endorsements immediately under it as proof, then a photo-forward programme
- * and speaker wall, with membership as tabs rather than four price cards. The
- * palette, typography and section list stay as specified in §3.2/§4.2 — this
- * is that page's rhythm, not its brand.
+ * (londonbusinessforum.com): a statement hero with a cycling phrase, then the
+ * routes into the site, with membership as tabs rather than four price cards.
+ * The palette, typography and section list stay as specified in §3.2/§4.2 —
+ * this is that page's rhythm, not its brand.
+ *
+ * The secretariat has since cut seven of the bands §4.2 lists: the six that
+ * ran between the hero and the sector grid — the endorsements, the statement
+ * and its stat counters, the programme highlights, the film band, the speaker
+ * wall and "who should attend" — and the sponsor strip that closed the page.
+ * They are not hidden behind a flag or an empty-state guard: a band nobody
+ * asked to keep is better deleted than left switched off, and the material
+ * they showed all still has its own page (`/events/agenda`,
+ * `/events/speakers`, `/events/sponsors`, `/learning-hub/recordings`,
+ * `/about`), which the header and the teasers below already reach. The
+ * section numbering below keeps its gaps closed, so what is left reads in
+ * order.
+ *
+ * Note that the sponsor strip took the page's only "Become a sponsor" call to
+ * action with it — including the one it showed in place of the strip when an
+ * edition had no sponsors signed yet. `/events/sponsors` is now reached from
+ * the footer's Events column, or from `/events` itself; the main nav has no
+ * direct entry for it.
  *
  * The queries run in two `Promise.all` batches rather than sequentially.
  * Awaiting them in series would add each round-trip to time-to-first-byte,
@@ -66,48 +71,24 @@ export default async function HomePage() {
   ])
 
   const [
-    featuredSpeakers,
-    sessions,
-    testimonials,
+    galleryPhotos,
     articles,
-    sponsors,
     tiers,
     opportunities,
+    videos,
   ] = await Promise.all([
-    db.speaker.findMany({
-      where: { isPublished: true, isFeatured: true },
+    // The hero mosaic. The forum's own photographs, in the order the
+    // secretariat set on the collection — twelve is more than the wall shows
+    // at any viewport, so removing one never opens a hole in the composition.
+    db.mediaAsset.findMany({
+      where: {
+        isPublic: true,
+        kind: 'GALLERY',
+        collection: { slug: 'forum-gallery', isPublished: true },
+      },
       orderBy: { sortOrder: 'asc' },
       take: 12,
-    }),
-    // The programme cards, in the order they run. Breaks and networking slots
-    // are excluded — a card that says "Coffee, 11:00" is not a reason to come.
-    event
-      ? db.eventSession.findMany({
-          where: {
-            eventId: event.id,
-            isPublished: true,
-            sessionType: {
-              in: ['KEYNOTE', 'PLENARY', 'PANEL', 'ROUNDTABLE', 'WORKSHOP'],
-            },
-          },
-          orderBy: [{ dayNumber: 'asc' }, { startsAt: 'asc' }],
-          take: 6,
-          include: {
-            speakers: {
-              orderBy: { sortOrder: 'asc' },
-              include: {
-                speaker: {
-                  select: { fullName: true, photoUrl: true, organisation: true },
-                },
-              },
-            },
-          },
-        })
-      : Promise.resolve([]),
-    db.testimonial.findMany({
-      where: { isPublished: true },
-      orderBy: { sortOrder: 'asc' },
-      take: 6,
+      select: { id: true, url: true },
     }),
     db.article.findMany({
       where: { status: 'PUBLISHED' },
@@ -115,12 +96,6 @@ export default async function HomePage() {
       take: 3,
       include: { category: { select: { name: true, slug: true } } },
     }),
-    event
-      ? db.sponsor.findMany({
-          where: { eventId: event.id, isPublished: true },
-          orderBy: [{ tier: 'asc' }, { sortOrder: 'asc' }],
-        })
-      : Promise.resolve([]),
     db.membershipTier.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
@@ -131,9 +106,31 @@ export default async function HomePage() {
       take: 3,
       include: { sector: { select: { name: true } } },
     }),
+    // The forum's own footage, in the secretariat's order, for the hero
+    // mosaic. Only self-hosted files are taken: the rest of the video
+    // collection lives on a platform whose player a decorative tile has no
+    // business embedding, and those belong on the recordings page where they
+    // are linked out to their host. Four is more than the wall places, so a
+    // fifth upload never lands in the hero unasked.
+    db.mediaAsset.findMany({
+      where: {
+        isPublic: true,
+        kind: 'VIDEO',
+        url: { startsWith: '/' },
+        collection: { slug: 'forum-videos', isPublished: true },
+      },
+      orderBy: { sortOrder: 'asc' },
+      take: 4,
+      select: {
+        id: true,
+        url: true,
+        title: true,
+        caption: true,
+        altText: true,
+        thumbnailUrl: true,
+      },
+    }),
   ])
-
-  const whoAttends = parseJsonColumn<string[]>(event?.whoAttendsJson ?? null, [])
 
   return (
     <>
@@ -142,87 +139,68 @@ export default async function HomePage() {
       <Hero
         settings={settings}
         event={event}
-        tiles={buildMosaic(featuredSpeakers, settings, sectors.length)}
+        tiles={buildMosaic(galleryPhotos, videos)}
       />
-      <Testimonials items={testimonials} />
-      <IntroStatement settings={settings} />
-      {event && <Programme event={event} sessions={sessions} />}
-      <SpeakerWall speakers={featuredSpeakers} />
-      <WhoShouldAttend whoAttends={whoAttends} />
       <Sectors sectors={sectors} />
       <DealRoomTeaser opportunities={opportunities} />
       <MembershipTeaser tiers={tiers} />
       <LatestNews articles={articles} />
-      <SponsorStrip sponsors={sponsors} />
       <NewsletterBand settings={settings} />
     </>
   )
 }
 
 /**
- * Interleave speaker portraits with figure tiles for the hero mosaic.
+ * Interleave the gallery photographs with the forum's clips for the hero
+ * mosaic.
  *
- * A figure lands every fourth tile, which in a three-column grid means no two
- * of them ever share a row or sit directly above one another — the block reads
- * as scattered without being randomised, and a random layout would differ
- * between the server render and the client's (NFR-01).
+ * The wall used to carry three flat tiles stating the delegate, country and
+ * sector counts. It no longer does — the secretariat would rather the fold
+ * showed the forum itself — so the positions those tiles held now go to
+ * footage, and the rest of the wall to photographs. The figures themselves had
+ * moved to the stats band below the hero, which has since been cut with it;
+ * they are on `/about` and in the event's own pages, not on this page at all.
+ *
+ * A clip lands every fourth tile, which in a three-column grid means no two of
+ * them ever share a row or sit directly above one another — the block reads as
+ * scattered without being randomised, and a random layout would differ between
+ * the server render and the client's (NFR-01). It also keeps the clips clear
+ * of the positions the mosaic enlarges; see FEATURE_POSITIONS.
+ *
+ * Everything past the photographs is appended rather than dropped, so a wall
+ * with more clips than places for them still shows all of them — and a site
+ * with no video on file simply gets the photographs, with no hole where a
+ * tile was expected.
  */
 function buildMosaic(
-  speakers: Array<{ id: string; fullName: string; photoUrl: string | null }>,
-  settings: Record<string, string>,
-  sectorCount: number,
+  photos: Array<{ id: string; url: string }>,
+  videos: Array<{ id: string; url: string; thumbnailUrl: string | null }>,
 ): MosaicTile[] {
-  // A figure with no value behind it is left out rather than shown as a blank
-  // tile — an unseeded settings row must not become a hole in the hero.
-  const allFigures: MosaicTile[] = [
-    {
-      kind: 'figure',
-      id: 'figure-delegates',
-      icon: 'users',
-      value: settings['stats.delegates']
-        ? `${Number(settings['stats.delegates']).toLocaleString('en-GB')}+`
-        : '',
-      label: 'Delegates',
-    },
-    {
-      kind: 'figure',
-      id: 'figure-countries',
-      icon: 'globe',
-      value: settings['stats.countries'] ?? '',
-      label: 'Countries',
-    },
-    {
-      kind: 'figure',
-      id: 'figure-sectors',
-      icon: 'briefcase',
-      value: sectorCount ? String(sectorCount) : '',
-      label: 'Priority sectors',
-    },
-  ]
+  const clips: MosaicTile[] = videos.map((video) => ({
+    kind: 'video',
+    id: video.id,
+    url: video.url,
+    posterUrl: video.thumbnailUrl,
+  }))
 
-  const figures = allFigures.filter(
-    (tile) => tile.kind === 'figure' && tile.value !== '',
-  )
-
-  const portraits: MosaicTile[] = speakers.map((speaker) => ({
-    kind: 'speaker',
-    id: speaker.id,
-    name: speaker.fullName,
-    photoUrl: speaker.photoUrl,
+  const photographs: MosaicTile[] = photos.map((photo) => ({
+    kind: 'photo',
+    id: photo.id,
+    url: photo.url,
   }))
 
   const tiles: MosaicTile[] = []
-  let nextFigure = 0
+  let nextClip = 0
 
-  for (const portrait of portraits) {
-    if (tiles.length % 4 === 3 && nextFigure < figures.length) {
-      tiles.push(figures[nextFigure])
-      nextFigure += 1
+  for (const photograph of photographs) {
+    if (tiles.length % 4 === 3 && nextClip < clips.length) {
+      tiles.push(clips[nextClip])
+      nextClip += 1
     }
-    tiles.push(portrait)
+    tiles.push(photograph)
   }
 
-  return tiles.concat(figures.slice(nextFigure))
+  return tiles.concat(clips.slice(nextClip))
 }
 
 // ── 1. Hero ─────────────────────────────────────────────────────────────────
@@ -251,8 +229,6 @@ function Hero({
   event: Awaited<ReturnType<typeof getCurrentEvent>>
   tiles: MosaicTile[]
 }) {
-  const countdown = event ? daysUntil(event.startDate) : null
-
   const statement = setting(settings, 'home.heroStatement')
   const words = setting(settings, 'home.heroWords')
     .split(',')
@@ -264,49 +240,33 @@ function Hero({
     <section className="relative isolate overflow-hidden bg-ink-950 text-white">
       <Container size="wide">
         <div className="py-14 sm:py-20 lg:w-[54%] lg:py-28 lg:pr-10">
-          {event && (
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-white/70">
-              <span className="font-semibold text-gold-400">
-                {formatDateRange(event.startDate, event.endDate)}
-              </span>
-              <span aria-hidden="true" className="text-white/30">
-                ·
-              </span>
-              <span>
-                {event.venueName}, {event.city}
-              </span>
-              {countdown !== null && countdown > 0 && (
-                <>
-                  <span aria-hidden="true" className="text-white/30">
-                    ·
-                  </span>
-                  <span>{countdown} days to go</span>
-                </>
-              )}
-            </p>
-          )}
-
-          {/* One icon per word, cross-fading in step with the highlight. */}
+          {/* One mark per word, stacked in a single grid cell and cross-faded
+              on the same loop as the words. The reference page changes the
+              glyph and the hue together as the highlight moves, so the mark
+              above the headline always belongs to the word currently lit. */}
           {words.length > 0 && (
-            <span aria-hidden="true" className="mt-8 grid w-fit">
-              {words.map((word, index) => (
-                <Icon
-                  key={word}
-                  name={HERO_ICONS[index % HERO_ICONS.length]}
-                  strokeWidth={1.5}
-                  className="hero-cycle-icon size-14 sm:size-16"
-                  style={{
-                    animationDelay: `${index * 3}s`,
-                    color: `var(${HERO_ACCENTS[index % HERO_ACCENTS.length]})`,
-                  }}
-                />
-              ))}
+            <span aria-hidden="true" className="grid w-fit">
+              {words.map((word, index) => {
+                const { icon, accent } = HERO_CYCLE[index % HERO_CYCLE.length]
+                return (
+                  <Icon
+                    key={word}
+                    name={icon}
+                    strokeWidth={1.5}
+                    className="hero-cycle-icon size-14 sm:size-16"
+                    style={{
+                      animationDelay: `${index * 3}s`,
+                      color: `var(${accent})`,
+                    }}
+                  />
+                )
+              })}
             </span>
           )}
 
           <h1 className="mt-7">
-            {/* The lead-in is the smaller line above the stack — "a forum for
-                those who" — and the three words complete the sentence. */}
+            {/* The lead-in is the smaller line above the stack — "delivering
+                ideas that" — and the three words complete the sentence. */}
             <span className="block font-display text-2xl font-semibold uppercase leading-tight tracking-tight text-white sm:text-3xl">
               {statement}
             </span>
@@ -318,8 +278,11 @@ function Hero({
                   className="hero-cycle-word block text-white"
                   style={{
                     animationDelay: `${index * 3}s`,
-                    // Read by the keyframes; each word lights in its own hue.
-                    ['--hero-accent' as string]: `var(${HERO_ACCENTS[index % HERO_ACCENTS.length]})`,
+                    // Read by the keyframes; each word lights in the hue of
+                    // the mark that comes up with it.
+                    ['--hero-accent' as string]: `var(${
+                      HERO_CYCLE[index % HERO_CYCLE.length].accent
+                    })`,
                   }}
                 >
                   {word}
@@ -332,14 +295,16 @@ function Hero({
             {event?.tagline ?? setting(settings, 'site.tagline')}
           </p>
 
-          {/* Square-cornered and uppercase, matching the reference. Local to
-              the hero — the rounded system button is still what every other
-              page uses (§3.5). */}
+          {/* Square-cornered, uppercase and red, matching the reference. All
+              three are local to the hero — the rounded gold button is still
+              what every other page uses for its main call to action (§3.5),
+              and the red here does not follow the cycle: it stays put on the
+              reference page while the words change colour above it. */}
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {event?.registrationOpen && (
               <ButtonLink
                 href="/register"
-                variant="accent"
+                variant="ember"
                 size="lg"
                 className="rounded-none font-semibold uppercase tracking-wider"
               >
@@ -348,7 +313,7 @@ function Hero({
               </ButtonLink>
             )}
             <ButtonLink
-              href="/invest/opportunities"
+              href="/deal-room"
               size="lg"
               className="rounded-none border border-white/40 bg-transparent font-semibold uppercase tracking-wider text-white hover:bg-white/10 active:bg-white/15"
             >
@@ -368,345 +333,28 @@ function Hero({
   )
 }
 
-/** One icon per hero word — invest, partner, build — in that order. */
-const HERO_ICONS = ['trending', 'handshake', 'building']
-
 /**
- * The highlight changes hue as it moves down the words, as it does on the
- * reference page. Gold leads, since that is the brand accent (§3.2); the other
- * two are the primary and secondary at the tints that hold up on near-black.
+ * The mark and the highlight, one pair per word, in the order the cycle runs
+ * them. The reference page moves both together — a purple face over "excite",
+ * a red rocket over "motivate" — so it is the pairing being followed here,
+ * not the colours on their own.
+ *
+ * The lamp and gold lead. The screenshots the secretariat sent caught only
+ * two of the three states, and gold is the brand accent (§3.2), so the state
+ * we could not see stays inside the FBF palette rather than inventing a third
+ * borrowed hue; `plum` and `ember` are the reference's own and live nowhere
+ * else on the site (see `globals.css`).
+ *
+ * Positional rather than keyed by word: the three words are editable from the
+ * admin panel, so nothing here may depend on what they say.
  */
-const HERO_ACCENTS = [
-  '--color-gold-400',
-  '--color-forest-400',
-  '--color-harbour-400',
+const HERO_CYCLE: Array<{ icon: IconName; accent: string }> = [
+  { icon: 'lightbulb', accent: '--color-gold-400' },
+  { icon: 'smile', accent: '--color-plum-500' },
+  { icon: 'rocket', accent: '--color-ember-500' },
 ]
 
-// ── 2. Intro statement with stat counters ───────────────────────────────────
-
-function IntroStatement({ settings }: { settings: Record<string, string> }) {
-  const stats = [
-    { value: settings['stats.delegates'], label: 'Delegates expected', suffix: '+' },
-    { value: settings['stats.countries'], label: 'Countries represented', suffix: '' },
-    { value: settings['stats.sectors'], label: 'Priority sectors', suffix: '' },
-    { value: settings['stats.dealValue'], label: 'Deals facilitated', prefix: 'US$', suffix: 'm' },
-  ].filter((stat) => stat.value)
-
-  return (
-    <Section tone="white" size="wide">
-      <div className="max-w-4xl">
-        <p className="text-sm font-semibold uppercase tracking-widest text-forest-700">
-          Who we are
-        </p>
-
-        <h2 className="mt-4 text-3xl leading-tight text-ink-950 sm:text-4xl lg:text-5xl">
-          The forum where Sierra Leonean enterprise meets capital.
-        </h2>
-
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ink-700">
-          FBF convenes the private sector, government and development partners
-          in a standing dialogue, runs the country&rsquo;s principal annual
-          investment forum, and maintains the national business directory and
-          Deal Room.
-        </p>
-
-        <ButtonLink href="/about" variant="outline" size="md" className="mt-8">
-          About the forum
-          <Icon name="arrowRight" className="size-4" />
-        </ButtonLink>
-      </div>
-
-      {stats.length > 0 && (
-        <dl className="mt-14 grid grid-cols-2 gap-8 border-t border-ink-200 pt-10 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.label}>
-              <Stat
-                value={`${stat.prefix ?? ''}${Number(stat.value).toLocaleString('en-GB')}${stat.suffix ?? ''}`}
-                label={stat.label}
-              />
-            </div>
-          ))}
-        </dl>
-      )}
-    </Section>
-  )
-}
-
-// ── 3. Programme highlights ─────────────────────────────────────────────────
-
-type ProgrammeSession = {
-  id: string
-  slug: string
-  title: string
-  description: string | null
-  dayNumber: number
-  startsAt: Date
-  endsAt: Date
-  sessionType: string
-  speakers: Array<{
-    speaker: { fullName: string; photoUrl: string | null; organisation: string }
-  }>
-}
-
-/**
- * The programme as a photo-forward card grid (§4.2 "forum highlights").
- *
- * Each card leads with the first speaker's photograph, because a face is what
- * makes someone stop on a session they have not heard of. Cards deep-link into
- * the agenda rather than to a session page — the agenda is where the room,
- * the track and the neighbouring sessions are, which is what someone clicking
- * "Find out more" actually wants next.
- */
-function Programme({
-  event,
-  sessions,
-}: {
-  event: NonNullable<Awaited<ReturnType<typeof getCurrentEvent>>>
-  sessions: ProgrammeSession[]
-}) {
-  const objectives = parseJsonColumn<string[]>(event.objectivesJson, [])
-
-  return (
-    <Section tone="muted" size="wide">
-      <div className="flex flex-wrap items-end justify-between gap-6">
-        <SectionHeading
-          eyebrow="The forum"
-          title={event.theme || 'Programme highlights'}
-          lead={event.description ?? undefined}
-          className="mb-0"
-        />
-
-        <div className="flex flex-wrap gap-3">
-          <ButtonLink href="/forum" size="md">
-            Overview &amp; theme
-          </ButtonLink>
-          <ButtonLink href="/forum/agenda" variant="outline" size="md">
-            Full agenda
-          </ButtonLink>
-        </div>
-      </div>
-
-      {sessions.length > 0 ? (
-        <CardGrid columns={3} className="mt-10">
-          {sessions.map((session) => {
-            const lead = session.speakers[0]?.speaker
-            const others = session.speakers.length - 1
-
-            return (
-              <LinkCard
-                key={session.id}
-                href={`/events/agenda#${session.slug}`}
-                className="h-full overflow-hidden"
-                padded={false}
-              >
-                <div className="relative h-44 bg-forest-800">
-                  {lead?.photoUrl ? (
-                    // CMS image URLs are arbitrary remote hosts, so next/image
-                    // cannot be used here — see the note in ui/card.tsx.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={lead.photoUrl}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="flex size-full items-center justify-center font-display text-4xl font-bold text-white/25"
-                    >
-                      {lead ? initials(lead.fullName) : 'FBF'}
-                    </span>
-                  )}
-
-                  <span className="absolute left-4 top-4 inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-ink-900">
-                    Day {session.dayNumber} · {formatTime(session.startsAt)}
-                  </span>
-                </div>
-
-                <div className="flex flex-1 flex-col p-5 sm:p-6">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">
-                    {SESSION_TYPE_LABELS[session.sessionType as SessionType] ??
-                      'Session'}
-                  </p>
-
-                  <h3 className="mt-2 font-display text-base font-semibold leading-snug text-ink-950 group-hover:text-forest-700">
-                    {session.title}
-                  </h3>
-
-                  {lead && (
-                    <p className="mt-2 text-sm text-ink-600">
-                      {lead.fullName}, {lead.organisation}
-                      {others > 0 && ` +${others} more`}
-                    </p>
-                  )}
-
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-forest-700">
-                    Find out more
-                    <Icon name="arrowRight" className="size-4" />
-                  </span>
-                </div>
-              </LinkCard>
-            )
-          })}
-        </CardGrid>
-      ) : (
-        objectives.length > 0 && (
-          <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {objectives.map((objective) => (
-              <li key={objective}>
-                <Card className="flex h-full gap-3">
-                  <Icon
-                    name="check"
-                    className="mt-0.5 size-5 shrink-0 text-forest-600"
-                  />
-                  <span className="text-ink-800">{objective}</span>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )
-      )}
-    </Section>
-  )
-}
-
-// ── 4. Speaker wall ─────────────────────────────────────────────────────────
-
-/**
- * A wall of faces (§4.2 "featured speakers").
- *
- * Photographs at tile size with the name over them, rather than avatars on
- * cards — the point of this band is the calibre of the room, and that reads
- * from the faces before it reads from the job titles.
- */
-function SpeakerWall({
-  speakers,
-}: {
-  speakers: Array<{
-    id: string
-    slug: string
-    fullName: string
-    title: string
-    organisation: string
-    photoUrl: string | null
-  }>
-}) {
-  if (speakers.length === 0) return null
-
-  return (
-    <Section tone="white" size="wide">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <SectionHeading
-          eyebrow="Speakers"
-          title="Who you will hear from"
-          className="mb-0"
-        />
-        <Link
-          href="/forum/speakers"
-          className="inline-flex items-center gap-1.5 font-medium text-forest-700 hover:text-forest-800 hover:underline"
-        >
-          See all speakers
-          <Icon name="arrowRight" className="size-4" />
-        </Link>
-      </div>
-
-      <ul className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-        {speakers.map((speaker) => (
-          <li key={speaker.id}>
-            <Link
-              href={`/events/speakers/${speaker.slug}`}
-              className="group relative block aspect-4/5 overflow-hidden rounded-xl bg-forest-800"
-            >
-              {speaker.photoUrl ? (
-                // Remote CMS URL — see the note in ui/card.tsx.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={speaker.photoUrl}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="size-full object-cover transition duration-300 group-hover:scale-105"
-                />
-              ) : (
-                <span
-                  aria-hidden="true"
-                  className="flex size-full items-center justify-center font-display text-4xl font-bold text-white/25"
-                >
-                  {initials(speaker.fullName)}
-                </span>
-              )}
-
-              {/* The scrim is what keeps the white name legible over a light
-                  photograph — without it the contrast depends on whatever the
-                  secretariat uploaded (NFR-09). */}
-              <span
-                aria-hidden="true"
-                className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-forest-950/95 via-forest-950/55 to-transparent"
-              />
-
-              <span className="absolute inset-x-0 bottom-0 p-4">
-                <span className="block font-display text-sm font-semibold leading-tight text-white">
-                  {speaker.fullName}
-                </span>
-                <span className="mt-1 block text-xs leading-tight text-white/75">
-                  {truncate(speaker.title, 46)}
-                </span>
-                <span className="mt-0.5 block text-xs font-medium leading-tight text-gold-300">
-                  {truncate(speaker.organisation, 40)}
-                </span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Section>
-  )
-}
-
-// ── 5. Who should attend ────────────────────────────────────────────────────
-
-const AUDIENCE_ICONS = [
-  'trending',
-  'building',
-  'shield',
-  'globe',
-  'users',
-  'handshake',
-]
-
-function WhoShouldAttend({ whoAttends }: { whoAttends: string[] }) {
-  if (whoAttends.length === 0) return null
-
-  return (
-    <Section tone="muted" size="wide">
-      <SectionHeading
-        eyebrow="Who attends"
-        title="Built for the people who move capital and make policy"
-        lead="Three days of plenaries, sector roundtables and scheduled one-to-one meetings, designed around what each audience came to do."
-      />
-
-      {/* Rules rather than cards: six bordered boxes in a row read as a form,
-          and this is a list of audiences, not a set of choices. */}
-      <ul className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-        {whoAttends.map((audience, index) => (
-          <li key={audience} className="border-t border-ink-300 pt-5">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-forest-100 text-forest-700">
-              <Icon
-                name={AUDIENCE_ICONS[index % AUDIENCE_ICONS.length]}
-                className="size-5"
-              />
-            </span>
-            <p className="mt-4 leading-relaxed text-ink-800">{audience}</p>
-          </li>
-        ))}
-      </ul>
-    </Section>
-  )
-}
-
-// ── 6. Sectors ──────────────────────────────────────────────────────────────
+// ── 2. Sectors ──────────────────────────────────────────────────────────────
 
 function Sectors({
   sectors,
@@ -748,7 +396,7 @@ function Sectors({
   )
 }
 
-// ── 7. Deal Room teaser ─────────────────────────────────────────────────────
+// ── 3. Deal Room teaser ─────────────────────────────────────────────────────
 
 function DealRoomTeaser({
   opportunities,
@@ -777,11 +425,11 @@ function DealRoomTeaser({
           />
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <ButtonLink href="/invest/apply" variant="accent" size="md">
+            <ButtonLink href="/deal-room/apply" variant="accent" size="md">
               Apply for funding
             </ButtonLink>
             <ButtonLink
-              href="/invest/opportunities"
+              href="/deal-room"
               size="md"
               className="border border-white/30 bg-white/10 text-white hover:bg-white/20"
             >
@@ -846,7 +494,7 @@ function DealRoomTeaser({
   )
 }
 
-// ── 8. Membership teaser ────────────────────────────────────────────────────
+// ── 4. Membership teaser ────────────────────────────────────────────────────
 
 function MembershipTeaser({
   tiers,
@@ -890,7 +538,7 @@ function MembershipTeaser({
   )
 }
 
-// ── 9. Latest news ──────────────────────────────────────────────────────────
+// ── 5. Latest news ──────────────────────────────────────────────────────────
 
 function LatestNews({
   articles,
@@ -912,7 +560,7 @@ function LatestNews({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <SectionHeading eyebrow="News" title="Latest from the forum" className="mb-0" />
         <Link
-          href="/news"
+          href="/blog"
           className="inline-flex items-center gap-1.5 font-medium text-forest-700 hover:text-forest-800 hover:underline"
         >
           All news &amp; insights
@@ -975,93 +623,7 @@ function LatestNews({
   )
 }
 
-// ── 10. Sponsors ────────────────────────────────────────────────────────────
-
-function SponsorStrip({
-  sponsors,
-}: {
-  sponsors: Array<{
-    id: string
-    slug: string
-    name: string
-    tier: string
-    logoUrl: string | null
-    website: string | null
-  }>
-}) {
-  if (sponsors.length === 0) {
-    return (
-      <CtaBand
-        title="Become a sponsor"
-        lead="Sponsorship puts your organisation in front of the people setting Sierra Leone's economic agenda."
-      >
-        <ButtonLink href="/forum/sponsors" variant="accent" size="lg">
-          Sponsorship options
-        </ButtonLink>
-      </CtaBand>
-    )
-  }
-
-  // Group by tier so Platinum reads before Silver, in the order set in enums.ts.
-  const byTier = SPONSOR_TIER_ORDER.map((tier) => ({
-    tier,
-    label: SPONSOR_TIER_LABELS[tier],
-    sponsors: sponsors.filter((sponsor) => sponsor.tier === tier),
-  })).filter((group) => group.sponsors.length > 0)
-
-  return (
-    <Section tone="muted" size="wide">
-      <SectionHeading
-        eyebrow="Partners"
-        title="Sponsors &amp; partners"
-        lead="The forum is delivered with the support of the organisations below."
-        align="center"
-      />
-
-      <div className="mt-10 space-y-8">
-        {byTier.map((group) => (
-          <div key={group.tier}>
-            <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-ink-500">
-              {group.label}
-            </p>
-
-            <ul className="flex flex-wrap items-center justify-center gap-3">
-              {group.sponsors.map((sponsor) => (
-                <li key={sponsor.id}>
-                  <Link
-                    href={`/events/sponsors#${sponsor.slug}`}
-                    className="flex min-h-16 items-center justify-center rounded-lg border border-ink-200 bg-white px-5 py-3 text-center text-sm font-medium text-ink-700 transition hover:border-forest-300 hover:text-forest-700"
-                  >
-                    {sponsor.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- see ui/card.tsx
-                      <img
-                        src={sponsor.logoUrl}
-                        alt={sponsor.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="max-h-10 w-auto"
-                      />
-                    ) : (
-                      sponsor.name
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-10 text-center">
-        <ButtonLink href="/forum/sponsors" variant="outline" size="md">
-          Become a sponsor
-        </ButtonLink>
-      </div>
-    </Section>
-  )
-}
-
-// ── 11. Newsletter ──────────────────────────────────────────────────────────
+// ── 6. Newsletter ──────────────────────────────────────────────────────────
 
 function NewsletterBand({ settings }: { settings: Record<string, string> }) {
   return (
@@ -1095,7 +657,7 @@ function EventStructuredData({
 }: {
   event: NonNullable<Awaited<ReturnType<typeof getCurrentEvent>>>
 }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://slbf.sl'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fbf.sl'
 
   const payload = {
     '@context': 'https://schema.org',
@@ -1121,7 +683,7 @@ function EventStructuredData({
       name: 'Freetown Business Forum',
       url: siteUrl,
     },
-    url: `${siteUrl}/forum`,
+    url: `${siteUrl}/events`,
   }
 
   return (

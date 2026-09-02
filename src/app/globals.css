@@ -57,6 +57,41 @@
   --color-gold-900: #6a3f18;
   --color-gold-950: #3d2009;
 
+  /* The two hues the homepage hero borrows from the reference page
+     (londonbusinessforum.com), which the secretariat asked it to carry as it
+     stands: the highlight changes glyph and colour together as it moves down
+     the three words. Both sit outside the §3.2 palette and are used nowhere
+     else on the site.
+
+     Each is used only at display size — 3.7:1 (ember) and 3.6:1 (plum) on
+     `ink-950` clear AA for large text (WCAG 1.4.3) but not for body copy, so
+     neither may spread into running text. Plum is lifted a couple of steps
+     off the reference's own purple, which measures 2.8:1 on this ground and
+     would fail even at 88px. */
+  --color-ember-50: #fef2f1;
+  --color-ember-100: #fde3e0;
+  --color-ember-200: #fbc9c4;
+  --color-ember-300: #f6a29a;
+  --color-ember-400: #ef6d61;
+  --color-ember-500: #e0231c; /* the reference red */
+  --color-ember-600: #c41c17;
+  --color-ember-700: #a31813;
+  --color-ember-800: #871814;
+  --color-ember-900: #711a17;
+  --color-ember-950: #3d0a08;
+
+  --color-plum-50: #f8f3fc;
+  --color-plum-100: #f0e5f9;
+  --color-plum-200: #e0c9f2;
+  --color-plum-300: #c8a1e6;
+  --color-plum-400: #b176d7;
+  --color-plum-500: #9a52c6; /* the reference purple, lifted for contrast */
+  --color-plum-600: #7f3aa8;
+  --color-plum-700: #692f8b;
+  --color-plum-800: #572a71;
+  --color-plum-900: #48255d;
+  --color-plum-950: #2c0f3c;
+
   /* Neutrals — warm greys, so the whites sit against the gold without clashing */
   --color-ink-50: #f8f8f7;
   --color-ink-100: #f0efed;
@@ -80,9 +115,9 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    /* Anchor targets must clear the sticky header — 5rem of bar plus the
-       dates strip that sits under it from `lg` up. */
-    scroll-padding-top: 7rem;
+    /* Anchor targets must clear the sticky header, which is the bar and
+       nothing else now that the dates strip below it has gone. */
+    scroll-padding-top: var(--spacing-header);
   }
 
   /* Respect a user's reduced-motion preference (NFR-09 / WCAG 2.3.3). */
@@ -148,9 +183,10 @@
    * Hero word cycle (§4.2 hero banner).
    *
    * All three words are on screen at once; the highlight travels down them on
-   * a nine-second loop, three seconds each, and the icon above changes with
-   * it. Each word carries its own accent in `--hero-accent`, so the colour
-   * changes as the highlight moves, as it does on the reference page.
+   * a nine-second loop, three seconds each, in the accent carried by
+   * `--hero-accent`. The mark above the headline changes on the same loop, so
+   * the glyph and the hue always belong to the word currently lit — that
+   * pairing is what the reference page does.
    *
    * Pure CSS: the hero is the first paint on the page and nothing in it should
    * wait for hydration on a mid-range handset (NFR-01).
@@ -170,7 +206,7 @@
     }
   }
 
-  /* The icons are stacked in one grid cell and cross-faded on the same loop. */
+  /* The marks are stacked in one grid cell and cross-faded on the same loop. */
   .hero-cycle-icon {
     grid-area: 1 / 1;
     opacity: 0;
@@ -190,8 +226,8 @@
 
   /*
    * The global reduced-motion rule collapses every animation to 0.01ms, which
-   * would leave all three icons stacked on each other and every word white.
-   * Under that preference the hero holds the first state.
+   * would leave all three marks stacked on each other and every word white.
+   * Under that preference the hero holds the first state of the loop instead.
    */
   @media (prefers-reduced-motion: reduce) {
     .hero-cycle-word,
@@ -209,6 +245,54 @@
 
     .hero-cycle-icon:not(:first-child) {
       display: none;
+    }
+  }
+
+  /*
+   * Hero mosaic scroll (§4.2 hero banner).
+   *
+   * The wall creeps upwards on a continuous loop, the way the reference page's
+   * hero panel travels rather than sitting still. The track holds two
+   * identical copies of the grid and moves by exactly one of them, so the
+   * moment the first copy clears the top the second is already in its place
+   * and the seam never shows.
+   *
+   * The distance is expressed as half the track rather than a pixel figure
+   * because the wall is as tall as the tiles make it — a different photograph
+   * count, or the same one at a narrower viewport, changes that height and
+   * would strand a hard-coded translation part-way through a row. Each copy
+   * carries its own bottom padding equal to the grid gap, which is what makes
+   * half the track land exactly one copy on: without it the two copies would
+   * be separated by a gap that the translation does not account for, and the
+   * wall would jump by half a gap every lap.
+   *
+   * Sixty seconds is deliberately slow. This sits behind the headline for as
+   * long as a visitor reads it, and anything quicker competes with the words
+   * for attention. Pure CSS and `transform` only, so it runs on the compositor
+   * and never blocks the first paint (NFR-01).
+   */
+  .hero-mosaic-track {
+    animation: hero-mosaic-scroll 60s linear infinite;
+    will-change: transform;
+  }
+
+  @keyframes hero-mosaic-scroll {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(0, -50%, 0);
+    }
+  }
+
+  /*
+   * The global reduced-motion rule shortens animations rather than removing
+   * them, which here would race the wall to the end of its lap in a hundredth
+   * of a second. Under that preference it simply stands still.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .hero-mosaic-track {
+      animation: none !important;
     }
   }
 

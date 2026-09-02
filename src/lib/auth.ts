@@ -20,7 +20,7 @@ import { Role } from '@/lib/enums'
  *  - Passwords use bcrypt at cost 12 (NFR-05 "hashed passwords").
  */
 
-const SESSION_COOKIE = 'slbf_session'
+const SESSION_COOKIE = 'fbf_session'
 const SESSION_TTL_DAYS = 14
 const BCRYPT_COST = 12
 

@@ -1,11 +1,12 @@
-// SLBF — Sierra Leone Business Forum
+// FBF — Freetown Business Forum
 // Database design (SDR §9). Core entities plus the supporting tables the
 // modules in §10 require.
 //
-// Portability note: the datasource is SQLite for local development and
-// Postgres in production (SDR §8 lists MySQL primary / PostgreSQL alternative).
-// To keep one schema valid on both, this file deliberately avoids provider-
-// specific features that SQLite does not implement:
+// Portability note: the datasource is Postgres (SDR §8 lists MySQL primary /
+// PostgreSQL alternative). It was SQLite until the move to a serverless host,
+// whose filesystem is ephemeral and read-only, so a file-backed database could
+// not survive a deployment. The schema kept its portability rules through that
+// change and deliberately avoids features a lesser engine does not implement:
 //   * no `enum`     — status/role columns are String, constrained in TypeScript
 //                     (src/lib/enums.ts) and validated with zod at every write.
 //   * no `Json`     — JSON payloads are String columns suffixed `Json`.
@@ -19,8 +20,12 @@ generator client {
 
 // Prisma 7 takes the connection URL from prisma.config.ts (for the CLI) and
 // from the driver adapter passed to PrismaClient (for the runtime), not here.
+//
+// Postgres everywhere, local development included. The portability rules above
+// still hold: they cost nothing on Postgres and they are what let this schema
+// be read, diffed and reasoned about without a running database.
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1057,7 +1062,7 @@ model Testimonial {
   authorName   String
   authorRole   String?
   organisation String
-  /// Optional — the carousel falls back to initials, as the speaker grid does.
+  /// Optional — a consumer falls back to initials, as the speaker grid does.
   photoUrl String?
 
   sortOrder   Int     @default(0)

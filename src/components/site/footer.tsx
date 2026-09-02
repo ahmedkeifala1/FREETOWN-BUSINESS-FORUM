@@ -19,6 +19,10 @@ export async function Footer() {
 
   const email = setting(settings, 'contact.email')
   const phone = setting(settings, 'contact.phone')
+  // Optional, like the WhatsApp number and the map link: read straight off the
+  // row so clearing it in the admin panel actually removes the line, rather
+  // than falling back to the compiled-in default.
+  const phoneAlt = settings['contact.phoneAlt']
   const whatsapp = settings['contact.whatsapp']
   const address = setting(settings, 'contact.address')
   const mapUrl = settings['contact.mapUrl']
@@ -35,7 +39,7 @@ export async function Footer() {
         <div className="grid gap-10 lg:grid-cols-12">
           {/* Identity and contact */}
           <div className="lg:col-span-4">
-            <Logo inverted />
+            <Logo />
 
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/70">
               {setting(settings, 'site.tagline')}
@@ -65,14 +69,26 @@ export async function Footer() {
                 </a>
               </p>
 
+              {/* Both numbers sit under one icon: they are one way of reaching
+                  the secretariat, not two separate channels. */}
               <p className="flex gap-2.5">
                 <Icon name="phone" className="mt-0.5 size-4 shrink-0 text-gold-400" />
-                <a
-                  href={`tel:${phone.replace(/\s/g, '')}`}
-                  className="hover:text-white hover:underline"
-                >
-                  {phone}
-                </a>
+                <span className="flex flex-col gap-1">
+                  <a
+                    href={`tel:${phone.replace(/\s/g, '')}`}
+                    className="hover:text-white hover:underline"
+                  >
+                    {phone}
+                  </a>
+                  {phoneAlt && (
+                    <a
+                      href={`tel:${phoneAlt.replace(/\s/g, '')}`}
+                      className="hover:text-white hover:underline"
+                    >
+                      {phoneAlt}
+                    </a>
+                  )}
+                </span>
               </p>
 
               {whatsapp && (

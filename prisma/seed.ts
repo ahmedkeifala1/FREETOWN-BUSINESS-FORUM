@@ -1,7 +1,7 @@
 import 'dotenv/config'
 
 import { PrismaClient } from '@prisma/client'
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
+import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 
 /**
@@ -23,11 +23,13 @@ import bcrypt from 'bcryptjs'
  * always "next year" relative to whenever this is run.
  */
 
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? 'file:./dev.db',
-  }),
-})
+// No default connection string: seeding the wrong database is worse than not
+// seeding one, and this script is run by hand against whichever DATABASE_URL
+// is in the environment.
+const url = process.env.DATABASE_URL
+if (!url) throw new Error('DATABASE_URL is not set. Copy .env.example to .env.')
+
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 
@@ -62,26 +64,37 @@ async function main() {
   }> = [
     { key: 'site.name', value: 'Freetown Business Forum', group: 'general', label: 'Site name', type: 'TEXT', sortOrder: 1 },
     { key: 'site.tagline', value: 'Convening capital, government and enterprise for a prosperous Sierra Leone', group: 'general', label: 'Tagline', type: 'TEXT', sortOrder: 2 },
-    { key: 'contact.email', value: 'info@slbf.sl', group: 'contact', label: 'Public email', type: 'EMAIL', sortOrder: 10 },
-    { key: 'contact.phone', value: '+232 76 000 000', group: 'contact', label: 'Public phone', type: 'TEXT', sortOrder: 11 },
-    { key: 'contact.whatsapp', value: '+232 76 000 000', group: 'contact', label: 'WhatsApp number', type: 'TEXT', sortOrder: 12 },
-    { key: 'contact.address', value: 'FBF Secretariat, 15 Siaka Stevens Street, Freetown, Sierra Leone', group: 'contact', label: 'Postal address', type: 'TEXTAREA', sortOrder: 13 },
-    { key: 'contact.mapUrl', value: 'https://maps.google.com/?q=Siaka+Stevens+Street+Freetown', group: 'contact', label: 'Map link', type: 'URL', sortOrder: 14 },
-    { key: 'social.linkedin', value: 'https://www.linkedin.com/company/sierra-leone-business-forum', group: 'social', label: 'LinkedIn', type: 'URL', sortOrder: 20 },
-    { key: 'social.twitter', value: 'https://x.com/slbusinessforum', group: 'social', label: 'X / Twitter', type: 'URL', sortOrder: 21 },
-    { key: 'social.facebook', value: 'https://www.facebook.com/slbusinessforum', group: 'social', label: 'Facebook', type: 'URL', sortOrder: 22 },
+    { key: 'contact.email', value: 'freetownbusinessforum@gmail.com', group: 'contact', label: 'Public email', type: 'EMAIL', sortOrder: 10 },
+    { key: 'contact.phone', value: '+232 75 768996', group: 'contact', label: 'Public phone', type: 'TEXT', sortOrder: 11 },
+    // The forum publishes two numbers, not one. The second gets a key of its own
+    // rather than being appended to `contact.phone`, because the footer and the
+    // contact page build a `tel:` href by stripping spaces out of that value —
+    // two numbers in one row would produce a link that dials neither.
+    { key: 'contact.phoneAlt', value: '+232 88 819708', group: 'contact', label: 'Second public phone', type: 'TEXT', sortOrder: 12 },
+    { key: 'contact.whatsapp', value: '', group: 'contact', label: 'WhatsApp number', type: 'TEXT', sortOrder: 13 },
+    { key: 'contact.address', value: 'Freetown Business Forum, 12C Lumley Road, Freetown, Sierra Leone', group: 'contact', label: 'Postal address', type: 'TEXTAREA', sortOrder: 14 },
+    { key: 'contact.mapUrl', value: 'https://maps.google.com/?q=12C+Lumley+Road+Freetown', group: 'contact', label: 'Map link', type: 'URL', sortOrder: 15 },
+    { key: 'social.linkedin', value: '', group: 'social', label: 'LinkedIn', type: 'URL', sortOrder: 20 },
+    { key: 'social.twitter', value: '', group: 'social', label: 'X / Twitter', type: 'URL', sortOrder: 21 },
+    { key: 'social.facebook', value: '', group: 'social', label: 'Facebook', type: 'URL', sortOrder: 22 },
     { key: 'stats.delegates', value: '1200', group: 'homepage', label: 'Delegates (counter)', type: 'NUMBER', sortOrder: 30 },
     { key: 'stats.countries', value: '35', group: 'homepage', label: 'Countries represented', type: 'NUMBER', sortOrder: 31 },
     { key: 'stats.sectors', value: '8', group: 'homepage', label: 'Priority sectors', type: 'NUMBER', sortOrder: 32 },
     { key: 'stats.dealValue', value: '450', group: 'homepage', label: 'Deals facilitated (US$m)', type: 'NUMBER', sortOrder: 33 },
     { key: 'stats.members', value: '500+', group: 'homepage', label: 'Member organisations (membership page)', type: 'TEXT', sortOrder: 34 },
     { key: 'newsletter.blurb', value: 'Monthly briefings on investment opportunities, policy changes and forum news. No more than one email a month.', group: 'homepage', label: 'Newsletter blurb', type: 'TEXTAREA', sortOrder: 40 },
-    // The hero stacks these three at display size, the last one in the accent
-    // colour. Single words — at 88px a two-word line wraps and the stack loses
+    // The hero stacks these three at display size and lights each one in the
+    // accent as the cycle reaches it. Single words — at 88px a two-word line wraps and the stack loses
     // its shape. Comma-separated rather than JSON so the field stays editable
     // as a plain text input.
-    { key: 'home.heroWords', value: 'Invest,Partner,Build', group: 'homepage', label: 'Hero words (comma-separated, first 3 used)', type: 'TEXT', sortOrder: 41 },
-    { key: 'home.heroStatement', value: 'A forum for those who', group: 'homepage', label: 'Hero lead-in (sits above the three words)', type: 'TEXT', sortOrder: 42 },
+    { key: 'home.heroWords', value: 'Inspire,Excite,Motivate', group: 'homepage', label: 'Hero words (comma-separated, first 3 used)', type: 'TEXT', sortOrder: 41 },
+    { key: 'home.heroStatement', value: 'Delivering ideas that', group: 'homepage', label: 'Hero lead-in (sits above the three words)', type: 'TEXT', sortOrder: 42 },
+    // The statement band under the endorsements. One word of the heading is
+    // set in bold against the rest at regular weight, and which word that is
+    // is the copywriter's call, not the layout's — so the value carries the
+    // mark itself: asterisks around the emphasised run.
+    { key: 'home.introHeading', value: 'We *connect* Sierra Leonean enterprise with the world', group: 'homepage', label: 'Intro heading (wrap one word in *asterisks* to embolden it)', type: 'TEXT', sortOrder: 43 },
+    { key: 'home.introBody', value: "The Freetown Business Forum brings investors, government and enterprise into one room. Our bi-annual forum, the national business directory and the Deal Room give members a standing route to capital, partners and policy — and give the world a way in to Sierra Leone's fastest-growing sectors.", group: 'homepage', label: 'Intro paragraph', type: 'TEXTAREA', sortOrder: 44 },
   ]
 
   for (const setting of settings) {
@@ -251,13 +264,13 @@ async function main() {
   // Seeded accounts share one weak password on purpose: they exist only in
   // development. Production is seeded with sectors and content only, and the
   // first administrator is created interactively.
-  const devPassword = await bcrypt.hash('SLBFdev2026!', 12)
+  const devPassword = await bcrypt.hash('FBFdev2026!', 12)
 
   const staff = [
-    { email: 'admin@slbf.sl', firstName: 'Aminata', lastName: 'Kamara', role: 'ADMIN', phone: '+232 76 100 001' },
-    { email: 'editor@slbf.sl', firstName: 'Mohamed', lastName: 'Sesay', role: 'EDITOR', phone: '+232 76 100 002' },
-    { email: 'events@slbf.sl', firstName: 'Fatmata', lastName: 'Bangura', role: 'EVENT_MANAGER', phone: '+232 76 100 003' },
-    { email: 'finance@slbf.sl', firstName: 'Ibrahim', lastName: 'Conteh', role: 'FINANCE', phone: '+232 76 100 004' },
+    { email: 'admin@fbf.sl', firstName: 'Aminata', lastName: 'Kamara', role: 'ADMIN', phone: '+232 76 100 001' },
+    { email: 'editor@fbf.sl', firstName: 'Mohamed', lastName: 'Sesay', role: 'EDITOR', phone: '+232 76 100 002' },
+    { email: 'events@fbf.sl', firstName: 'Fatmata', lastName: 'Bangura', role: 'EVENT_MANAGER', phone: '+232 76 100 003' },
+    { email: 'finance@fbf.sl', firstName: 'Ibrahim', lastName: 'Conteh', role: 'FINANCE', phone: '+232 76 100 004' },
   ]
 
   const users: Record<string, string> = {}
@@ -274,7 +287,7 @@ async function main() {
     })
     users[person.email] = row.id
   }
-  console.log(`  ✓ ${staff.length} staff accounts (password: SLBFdev2026!)`)
+  console.log(`  ✓ ${staff.length} staff accounts (password: FBFdev2026!)`)
 
   // ── Membership tiers ──────────────────────────────────────────────────────
 
@@ -356,10 +369,10 @@ async function main() {
   // ── The forum ─────────────────────────────────────────────────────────────
 
   const event = await prisma.event.upsert({
-    where: { slug: `slbf-${EVENT_YEAR}` },
+    where: { slug: `fbf-${EVENT_YEAR}` },
     update: {},
     create: {
-      slug: `slbf-${EVENT_YEAR}`,
+      slug: `fbf-${EVENT_YEAR}`,
       name: `Freetown Business Forum ${EVENT_YEAR}`,
       theme: 'Building the Next Economy: Capital, Capability and Connection',
       tagline:
@@ -396,6 +409,15 @@ async function main() {
       registrationOpen: true,
     },
   })
+
+  // Exactly one event may carry `isCurrent`. A database seeded under an earlier
+  // event slug still holds that older row, and two current events make
+  // getCurrentEvent()'s findFirst a coin toss for the header, hero and every
+  // registration link.
+  await prisma.event.updateMany({
+    where: { id: { not: event.id }, isCurrent: true },
+    data: { isCurrent: false },
+  })
   console.log(`  ✓ event ${event.name}`)
 
   // ── Tracks ────────────────────────────────────────────────────────────────
@@ -422,8 +444,6 @@ async function main() {
   // ── Speakers ──────────────────────────────────────────────────────────────
 
   const speakerData = [
-    { slug: 'julius-maada-bio', fullName: 'H.E. Julius Maada Bio', title: 'President', organisation: 'Republic of Sierra Leone', country: 'Sierra Leone', isFeatured: true, sortOrder: 1, bio: 'President of Sierra Leone, whose administration has placed human capital development and private sector-led growth at the centre of the national development plan.' },
-    { slug: 'sheku-bangura', fullName: 'Sheku Ahmed Fantamadi Bangura', title: 'Minister of Finance', organisation: 'Government of Sierra Leone', country: 'Sierra Leone', sectorSlug: 'infrastructure', isFeatured: true, sortOrder: 2, bio: 'Leads fiscal policy, debt management and the government’s engagement with international financial institutions.' },
     { slug: 'ngozi-adeyemi', fullName: 'Dr Ngozi Adeyemi', title: 'Regional Director, West Africa', organisation: 'African Development Bank', country: 'Nigeria', sectorSlug: 'infrastructure', isFeatured: true, sortOrder: 3, bio: 'Oversees the Bank’s West African portfolio, with a focus on infrastructure finance and private sector operations in fragile and transition states.' },
     { slug: 'mariama-jalloh', fullName: 'Mariama Jalloh', title: 'Founder & Chief Executive', organisation: 'Salone Agro Processing', country: 'Sierra Leone', sectorSlug: 'agriculture', isFeatured: true, sortOrder: 4, bio: 'Built a cashew processing business from a single outgrower scheme in Kambia into a certified exporter working with more than 4,000 smallholder farmers.' },
     { slug: 'david-okonjo', fullName: 'David Okonjo', title: 'Managing Partner', organisation: 'Atlantic Frontier Capital', country: 'Ghana', sectorSlug: 'fintech', isFeatured: true, sortOrder: 5, bio: 'Invests growth capital in West African financial services and consumer businesses, with a portfolio spanning six markets.' },
@@ -435,6 +455,13 @@ async function main() {
     { slug: 'olu-thompson', fullName: 'Olu Thompson', title: 'Partner', organisation: 'Diaspora Growth Partners', country: 'United Kingdom', sectorSlug: 'fintech', sortOrder: 11, bio: 'Channels diaspora capital into Sierra Leonean SMEs through a syndicate of British and American investors of Sierra Leonean heritage.' },
     { slug: 'hawa-sankoh', fullName: 'Hawa Sankoh', title: 'Managing Director', organisation: 'Peninsula Resorts', country: 'Sierra Leone', sectorSlug: 'tourism', sortOrder: 12, bio: 'Developed three eco-lodges on the Freetown Peninsula and chairs the national hospitality standards working group.' },
   ]
+
+  // Two earlier rows named real, serving public officials as speakers, which
+  // asserts an appearance nobody has agreed to. Removed here as well as from
+  // the list above, so a database seeded before this still loses them.
+  await prisma.speaker.deleteMany({
+    where: { slug: { notIn: speakerData.map((speaker) => speaker.slug) } },
+  })
 
   const speakers: Record<string, string> = {}
   for (const { sectorSlug, ...speaker } of speakerData) {
@@ -457,8 +484,8 @@ async function main() {
   const sessionData = [
     // Day 1
     { slug: 'registration-day-1', title: 'Registration & welcome coffee', day: 1, start: eventDay(1, 8, 0), end: eventDay(1, 9, 0), type: 'BREAK', track: 'Plenary', room: 'Main Foyer' },
-    { slug: 'opening-ceremony', title: 'Opening ceremony and presidential address', day: 1, start: eventDay(1, 9, 0), end: eventDay(1, 10, 30), type: 'CEREMONY', track: 'Plenary', room: 'Bintumani Hall', speakers: [['julius-maada-bio', 'KEYNOTE'], ['sheku-bangura', 'SPEAKER']], description: 'The forum opens with an address from the President setting out the national economic agenda, followed by the Minister of Finance on the fiscal and macroeconomic outlook for the year ahead.' },
-    { slug: 'state-of-the-economy', title: 'The state of the economy: where the growth will come from', day: 1, start: eventDay(1, 11, 0), end: eventDay(1, 12, 30), type: 'PLENARY', track: 'Plenary', room: 'Bintumani Hall', speakers: [['sheku-bangura', 'PANELLIST'], ['aisha-turay', 'PANELLIST'], ['ngozi-adeyemi', 'PANELLIST'], ['david-okonjo', 'MODERATOR']], description: 'A frank assessment of the macroeconomic picture — inflation, exchange rate stability, debt sustainability and the credit environment — and what each means for the cost and availability of capital to Sierra Leonean businesses.' },
+    { slug: 'opening-ceremony', title: 'Opening ceremony', day: 1, start: eventDay(1, 9, 0), end: eventDay(1, 10, 30), type: 'CEREMONY', track: 'Plenary', room: 'Bintumani Hall', description: 'The forum opens with the national economic agenda and the fiscal and macroeconomic outlook for the year ahead. Speakers are confirmed by the secretariat ahead of each edition.' },
+    { slug: 'state-of-the-economy', title: 'The state of the economy: where the growth will come from', day: 1, start: eventDay(1, 11, 0), end: eventDay(1, 12, 30), type: 'PLENARY', track: 'Plenary', room: 'Bintumani Hall', speakers: [['aisha-turay', 'PANELLIST'], ['ngozi-adeyemi', 'PANELLIST'], ['david-okonjo', 'MODERATOR']], description: 'A frank assessment of the macroeconomic picture — inflation, exchange rate stability, debt sustainability and the credit environment — and what each means for the cost and availability of capital to Sierra Leonean businesses.' },
     { slug: 'lunch-day-1', title: 'Networking lunch', day: 1, start: eventDay(1, 12, 30), end: eventDay(1, 14, 0), type: 'NETWORKING', track: 'Plenary', room: 'Garden Terrace' },
     { slug: 'financing-the-middle', title: 'Financing the missing middle', day: 1, start: eventDay(1, 14, 0), end: eventDay(1, 15, 30), type: 'PANEL', track: 'Investment & Finance', room: 'Lion Room', speakers: [['david-okonjo', 'PANELLIST'], ['olu-thompson', 'PANELLIST'], ['fatou-diallo', 'PANELLIST']], description: 'Businesses too large for microfinance and too small for private equity are where most Sierra Leonean employment sits — and where the financing gap is widest. Investors and lenders set out what they can actually fund, on what terms, and what makes a proposition bankable.' },
     { slug: 'agribusiness-value-chain', title: 'Agribusiness: keeping the value at home', day: 1, start: eventDay(1, 14, 0), end: eventDay(1, 15, 30), type: 'ROUNDTABLE', track: 'Sector Deep Dives', room: 'Cotton Tree Room', speakers: [['mariama-jalloh', 'CHAIR']], description: 'Ninety per cent of Sierra Leonean cocoa leaves the country raw. This roundtable works through the specific constraints on processing — power, certification, working capital and offtake — and what would have to change for each.' },
@@ -478,9 +505,9 @@ async function main() {
 
     // Day 3
     { slug: 'doing-business-clinic', title: 'Doing business in Sierra Leone: the practical clinic', day: 3, start: eventDay(3, 9, 0), end: eventDay(3, 10, 30), type: 'WORKSHOP', track: 'SME Capability', room: 'Aberdeen Suite', speakers: [['samuel-macarthy', 'SPEAKER']], description: 'Registration, licensing, tax, land title and work permits — walked through step by step by the agencies that issue them, with time for individual questions.' },
-    { slug: 'infrastructure-ppp', title: 'Infrastructure and the PPP pipeline', day: 3, start: eventDay(3, 9, 0), end: eventDay(3, 10, 30), type: 'PANEL', track: 'Sector Deep Dives', room: 'Lion Room', speakers: [['ngozi-adeyemi', 'PANELLIST'], ['sheku-bangura', 'PANELLIST']], description: 'Roads, port, housing and urban water. The projects in the pipeline, the concession terms available, and how risk is being allocated between the state and private partners.' },
+    { slug: 'infrastructure-ppp', title: 'Infrastructure and the PPP pipeline', day: 3, start: eventDay(3, 9, 0), end: eventDay(3, 10, 30), type: 'PANEL', track: 'Sector Deep Dives', room: 'Lion Room', speakers: [['ngozi-adeyemi', 'PANELLIST']], description: 'Roads, port, housing and urban water. The projects in the pipeline, the concession terms available, and how risk is being allocated between the state and private partners.' },
     { slug: 'sme-pitch', title: 'SME pitch showcase', day: 3, start: eventDay(3, 11, 0), end: eventDay(3, 12, 30), type: 'PLENARY', track: 'SME Capability', room: 'Bintumani Hall', speakers: [['mariama-jalloh', 'PANELLIST'], ['david-okonjo', 'PANELLIST'], ['olu-thompson', 'PANELLIST']], description: 'Twelve Sierra Leonean businesses, shortlisted from the Deal Room submissions, pitch to a panel of investors in front of the full forum.' },
-    { slug: 'closing-plenary', title: 'Closing plenary: commitments and next steps', day: 3, start: eventDay(3, 14, 0), end: eventDay(3, 15, 30), type: 'PLENARY', track: 'Plenary', room: 'Bintumani Hall', speakers: [['sheku-bangura', 'SPEAKER'], ['samuel-macarthy', 'SPEAKER']], description: 'Government and the private sector set out what each has committed to during the forum, with named owners and dates, to be reported against at next year’s convening.' },
+    { slug: 'closing-plenary', title: 'Closing plenary: commitments and next steps', day: 3, start: eventDay(3, 14, 0), end: eventDay(3, 15, 30), type: 'PLENARY', track: 'Plenary', room: 'Bintumani Hall', speakers: [['samuel-macarthy', 'SPEAKER']], description: 'Government and the private sector set out what each has committed to during the forum, with named owners and dates, to be reported against at next year’s convening.' },
   ]
 
   for (const session of sessionData) {
@@ -673,16 +700,21 @@ async function main() {
     })
   }
 
+  // The forum's officers, from the FBF information sheet supplied by the client.
+  // No bios or individual email addresses: none were provided, and inventing
+  // them for named, real people is not a placeholder — it is a false statement
+  // about someone. The admin panel is where the secretariat adds their own.
   const leadershipData = [
-    { slug: 'chair-alhaji-bah', name: 'Alhaji Mohamed Bah', role: 'Chair, FBF Board', group: 'LEADERSHIP', sortOrder: 1, bio: 'Chairs the forum’s board and has led Sierra Leonean manufacturing businesses for more than thirty years.' },
-    { slug: 'vice-chair-isata-kabia', name: 'Isata Kabia', role: 'Vice Chair', group: 'LEADERSHIP', sortOrder: 2, bio: 'Vice chair of the board, with a career spanning development finance and private equity across West Africa.' },
-    { slug: 'exec-director-aminata-kamara', name: 'Aminata Kamara', role: 'Executive Director', group: 'SECRETARIAT', sortOrder: 3, email: 'director@slbf.sl', bio: 'Leads the secretariat and is responsible for the forum programme, membership and partnerships.' },
-    { slug: 'head-of-programmes', name: 'Fatmata Bangura', role: 'Head of Programmes', group: 'SECRETARIAT', sortOrder: 4, email: 'programmes@slbf.sl', bio: 'Designs and delivers the forum programme and the year-round SME capability work.' },
-    { slug: 'head-of-finance', name: 'Ibrahim Conteh', role: 'Head of Finance & Operations', group: 'SECRETARIAT', sortOrder: 5, email: 'finance@slbf.sl', bio: 'Responsible for the forum’s finances, procurement and operations.' },
-    { slug: 'head-of-communications', name: 'Mohamed Sesay', role: 'Head of Communications', group: 'SECRETARIAT', sortOrder: 6, email: 'comms@slbf.sl', bio: 'Leads communications, publications and the forum’s media relationships.' },
-    { slug: 'governance-audit-committee', name: 'Audit & Risk Committee', role: 'Standing committee of the board', group: 'GOVERNANCE', sortOrder: 7, bio: 'Oversees financial controls, external audit and risk management on behalf of the board.' },
-    { slug: 'governance-membership-committee', name: 'Membership Committee', role: 'Standing committee of the board', group: 'GOVERNANCE', sortOrder: 8, bio: 'Reviews membership applications, sets tier criteria and hears appeals.' },
+    { slug: 'president-james-mallah', name: 'Dr. James Mohammed Mallah', role: 'President', group: 'LEADERSHIP', sortOrder: 1 },
+    { slug: 'board-chairman-patrick-gibrilla', name: 'Hon. Patrick Michaelson Gibrilla', role: 'Board Chairman', group: 'LEADERSHIP', sortOrder: 2 },
+    { slug: 'director-admin-programmes-sulaiman-sesay', name: 'Sulaiman Keh Sesay', role: 'Director of Admin and Programs', group: 'SECRETARIAT', sortOrder: 3 },
   ]
+
+  // Upserts alone would leave earlier placeholder officers behind in a database
+  // that has already been seeded, so anything not on the list above goes.
+  await prisma.leadershipProfile.deleteMany({
+    where: { slug: { notIn: leadershipData.map((profile) => profile.slug) } },
+  })
 
   for (const profile of leadershipData) {
     await prisma.leadershipProfile.upsert({
@@ -694,76 +726,31 @@ async function main() {
 
   // ── Our story (About page timeline, §4.3) ─────────────────────────────────
 
-  // Placeholder narrative in the secretariat's voice, to be replaced with the
-  // real institutional history. `imageUrl` is left null throughout: the brief
-  // calls for authentic Sierra Leonean photography (§3.4) and the image library
-  // is not yet licensed, so the page renders its own placeholder panel rather
-  // than a stock photograph. Setting `imageUrl` on a row swaps it in.
+  // One row, because one is what the source material supports: the FBF
+  // information sheet gives the founding date and nothing else about the
+  // forum's history. An invented timeline reads as institutional history to
+  // every visitor, so the rest is for the secretariat to add through the admin
+  // panel from what actually happened.
+  //
+  // `imageUrl` is left null: the brief calls for authentic Sierra Leonean
+  // photography (§3.4) and the image library is not yet licensed, so the page
+  // renders its own placeholder panel rather than a stock photograph. Setting
+  // `imageUrl` on a row swaps it in.
   const milestoneData = [
     {
-      slug: 'story-2007',
-      year: '2007',
-      title: 'A table, and a standing invitation',
-      body: 'The forum begins as a standing invitation rather than an institution: a quarterly table at which the Ministry of Trade and Industry sits down with a few dozen Freetown business owners and works through what is actually stopping them from trading. No communiqué, no head table — just an agenda set by the businesses in the room and a written record of what government undertook to do before the next meeting.',
+      slug: 'story-founded-2023',
+      year: '2023',
+      title: 'The forum is founded',
+      body: 'The Freetown Business Forum is founded on 12 December 2023 as a non-profit organisation dedicated to empowering Sierra Leone’s business community — promoting small and medium enterprises, advancing trade and industries, supporting youth entrepreneurship, tourism and ecological protection, and strengthening human capital.',
       sortOrder: 1,
     },
-    {
-      slug: 'story-2010',
-      year: '2010',
-      title: 'From a room to a register',
-      body: 'It becomes clear that the dialogue is only as good as its evidence. The secretariat begins compiling the first national register of Sierra Leonean businesses — sector, size, location, and what each firm actually needs to grow. Compiled on paper and typed up in the evenings, it is the ancestor of today’s business directory, and the first time the private sector could describe itself with numbers.',
-      sortOrder: 2,
-    },
-    {
-      slug: 'story-2014',
-      year: '2014–2016',
-      title: 'The years that tested it',
-      body: 'The Ebola outbreak closes markets, borders and the forum’s own offices. The quarterly meeting moves to the telephone and does not miss a session. For two years the dialogue functions as a clearing house — which supply routes are open, which banks are lending, which contracts can be honoured — and the habit of talking plainly under pressure becomes the thing the forum is trusted for.',
-      sortOrder: 3,
-    },
-    {
-      slug: 'story-2018',
-      year: '2018',
-      title: 'Membership opens',
-      body: 'The forum is put on a formal footing. A board drawn from the private sector is constituted, membership tiers open from sole traders to patrons, and a published subscription replaces the informal invitation list. Members gain a directory listing, a seat in the dialogue with government, and — for the first time — a right to be heard rather than a favour.',
-      sortOrder: 4,
-    },
-    {
-      slug: 'story-2019',
-      year: '2019',
-      title: 'The first Deal Room',
-      body: 'Investors had been coming to the annual forum and leaving with business cards. So the secretariat inverts the format: propositions are submitted in advance, screened, and matched to investors before anyone travels. The first Deal Room schedules 140 one-to-one meetings across a single day. Delegates spend the second day of the forum talking rather than looking.',
-      sortOrder: 5,
-    },
-    {
-      slug: 'story-2020',
-      year: '2020',
-      title: 'A forum without a room',
-      body: 'The pandemic closes the venue eleven weeks before the forum opens. Rather than cancel, the team rebuilds it for a handset: sessions streamed at a bitrate that survives a Freetown 3G connection, matched meetings held over WhatsApp video, and registration paid by mobile money. Attendance from outside the capital more than doubles — a lesson the forum keeps.',
-      sortOrder: 6,
-    },
-    {
-      slug: 'story-2022',
-      year: '2022',
-      title: 'Eight sectors, one investment case',
-      body: 'The forum stops treating "investment" as a single conversation. Eight standing sector groups are established — agriculture, mining, energy, tourism, fintech, infrastructure, fisheries and manufacturing — each with its own data, its own incentives and its own pipeline. The annual forum reorganises around them, and so does the year-round work between editions.',
-      sortOrder: 7,
-    },
-    {
-      slug: 'story-2024',
-      year: '2024',
-      title: 'The largest edition yet',
-      body: 'Nine hundred delegates from twenty-eight countries convene in Freetown. The Deal Room closes the week with commitments across agro-processing, cold chain and off-grid power, and the SME investment-readiness programme graduates its second cohort. Cumulative capital facilitated through the forum passes the US$400 million mark.',
-      sortOrder: 8,
-    },
-    {
-      slug: 'story-next',
-      year: String(EVENT_YEAR),
-      title: 'The road to the next forum',
-      body: 'Registration is open. The programme runs over three days in Freetown, with plenaries, eight sector roundtables and a Deal Room scheduled in advance. What began as a quarterly table is now the country’s principal meeting between enterprise, capital and government — and the invitation still works the same way.',
-      sortOrder: 9,
-    },
   ]
+
+  // Removes the placeholder timeline from any database seeded before the
+  // forum's real history was known.
+  await prisma.milestone.deleteMany({
+    where: { slug: { notIn: milestoneData.map((milestone) => milestone.slug) } },
+  })
 
   for (const milestone of milestoneData) {
     await prisma.milestone.upsert({
@@ -795,7 +782,7 @@ async function main() {
 
   const articleData = [
     {
-      slug: `slbf-${EVENT_YEAR}-registration-opens`,
+      slug: `fbf-${EVENT_YEAR}-registration-opens`,
       title: `Registration opens for the Freetown Business Forum ${EVENT_YEAR}`,
       category: 'forum-news',
       isFeatured: true,
@@ -891,7 +878,7 @@ Members receive a listing in the business directory, member rates on forum regis
     const data = {
       ...rest,
       categoryId: categories[category],
-      authorId: users['editor@slbf.sl'],
+      authorId: users['editor@fbf.sl'],
       status: 'PUBLISHED',
       isFeatured: article.isFeatured ?? false,
     }
@@ -1092,13 +1079,13 @@ Members receive a listing in the business directory, member rates on forum regis
       title: 'About the Freetown Business Forum',
       bodyJson: JSON.stringify({
         intro:
-          'The Freetown Business Forum exists to connect Sierra Leonean enterprise with the capital, partnerships and policy environment it needs to grow.',
+          'The Freetown Business Forum (FBF) is a non-profit organisation, founded on 12 December 2023, dedicated to empowering Sierra Leone’s business community.',
         vision:
-          'A Sierra Leone where domestic enterprise is the engine of national prosperity — financed, capable, and connected to regional and global markets.',
+          'A dynamic platform that strengthens the capacity of businesses through advocacy, knowledge-sharing, partnerships and resource mobilisation — fostering innovation, professionalism and sustainable development for the benefit of entrepreneurs and enterprises in Sierra Leone.',
         mandate:
-          'FBF convenes the private sector, government and development partners in a standing dialogue; runs the country’s principal annual investment forum; maintains a national business directory and Deal Room; and builds the investment-readiness of Sierra Leonean SMEs through year-round programmes.',
+          'The forum focuses on promoting small and medium enterprises, advancing trade and industries, supporting youth entrepreneurship, tourism and ecological protection, and strengthening human capital.\n\nFBF organises bi-annual events at which businesses that register have the opportunity to meet other business owners and business leaders in Sierra Leone and beyond. Membership is open to individuals and groups who own a business or an MSME.',
         governance:
-          'The forum is governed by a board drawn from the private sector, with standing Audit & Risk and Membership committees. Day-to-day operations are run by a secretariat based in Freetown, accountable to the board. Annual accounts are externally audited and published to members.',
+          'The forum is led by its President, Dr. James Mohammed Mallah, and its Board Chairman, Hon. Patrick Michaelson Gibrilla. Day-to-day administration and programmes are run by the secretariat in Freetown under Sulaiman Keh Sesay, Director of Admin and Programs.',
       }),
     },
     {
@@ -1109,6 +1096,29 @@ Members receive a listing in the business directory, member rates on forum regis
           'A directory listing that investors actually read, member rates on registration, a seat in the Deal Room, and a standing voice in the dialogue with government.',
         intro:
           'FBF membership is how a Sierra Leonean business stops waiting to be found. Members are listed in the national business directory, priced into the forum at the member rate, and admitted to the Deal Room where the secretariat matches propositions to capital.',
+        // The three things membership opens, shown with a photograph each.
+        // Three because that is the shape of the band; a fourth would wrap to
+        // a second row and read as an afterthought.
+        access: JSON.stringify([
+          {
+            title: 'The forum',
+            body: 'Member rates on every registration, and three days in the room where government, capital and Sierra Leonean enterprise are all in the same place.',
+            href: '/events',
+            linkLabel: 'See the programme',
+          },
+          {
+            title: 'The Deal Room',
+            body: 'Propositions put in front of capital by the secretariat, with the introductions made in person at the forum rather than left to a search box.',
+            href: '/deal-room',
+            linkLabel: 'How the Deal Room works',
+          },
+          {
+            title: 'The directory',
+            body: 'A published listing in the national business directory, which is where investors and partners look first for a Sierra Leonean counterpart.',
+            href: '/directory',
+            linkLabel: 'Browse the directory',
+          },
+        ]),
         // Nested JSON inside the block, so the steps and questions stay
         // editable as CMS content without a table of their own.
         steps: JSON.stringify([
@@ -1242,7 +1252,7 @@ Members receive a listing in the business directory, member rates on forum regis
       where: { slug: page.slug },
       update: { title: page.title },
       // bodyJson is not overwritten on update — CMS edits must survive re-seeding.
-      create: { ...page, status: 'PUBLISHED', updatedById: users['editor@slbf.sl'] },
+      create: { ...page, status: 'PUBLISHED', updatedById: users['editor@fbf.sl'] },
     })
   }
   console.log(`  ✓ ${pageData.length} CMS pages`)
@@ -1264,6 +1274,171 @@ Members receive a listing in the business directory, member rates on forum regis
     })
     collections[collection.slug] = row.id
   }
+
+  /**
+   * The forum's own photographs.
+   *
+   * These are rows rather than a constant inside the hero component because
+   * the homepage mosaic reads its tiles from this collection (FR-01) — which
+   * photographs appear, and in what order, is a `sortOrder` edit rather than a
+   * deploy. §3.4 asks for authentic Sierra Leonean photography and these are
+   * exactly that: the secretariat's own record of its engagements.
+   *
+   * `url` points at files squared to 640px in `public/brand/hero/`, derived
+   * from the originals in `public/`. The originals stay where they are — two
+   * of them are over 10MB, which is not something to put in a hero on a 3G
+   * handset (NFR-01).
+   *
+   * Captions on the four engagement photographs come from the filenames the
+   * secretariat supplied. The rest describe only what is visible in the frame;
+   * naming the people or the occasion is for the secretariat to do.
+   */
+  const galleryAssetData = [
+    {
+      id: 'gallery-delegation',
+      filename: 'delegation.jpg',
+      title: 'Visiting delegation',
+      altText: 'Forum representatives with a visiting international delegation',
+      sizeBytes: 73316,
+      sortOrder: 1,
+    },
+    {
+      id: 'gallery-saudi-embassy',
+      filename: 'saudi-embassy.jpg',
+      title: 'Embassy of the Kingdom of Saudi Arabia',
+      altText:
+        'Part of the executive with the Ambassador and senior staff of the Embassy of the Kingdom of Saudi Arabia in Sierra Leone',
+      sizeBytes: 74048,
+      sortOrder: 2,
+    },
+    {
+      id: 'gallery-boardroom',
+      filename: 'boardroom.jpg',
+      title: 'In the boardroom',
+      altText: 'Secretariat colleagues at work around the boardroom table',
+      sizeBytes: 85228,
+      sortOrder: 3,
+    },
+    {
+      id: 'gallery-ghana-commission',
+      filename: 'ghana-commission.jpg',
+      title: 'Ghana High Commission',
+      altText: 'The executive at the Ghana High Commission in Sierra Leone',
+      sizeBytes: 71045,
+      sortOrder: 4,
+    },
+    {
+      id: 'gallery-egypt-ambassador',
+      filename: 'egypt-ambassador.jpg',
+      title: 'Egyptian Ambassador to Sierra Leone',
+      altText:
+        'With the Egyptian Ambassador to Sierra Leone following an engagement',
+      sizeBytes: 78046,
+      sortOrder: 5,
+    },
+    {
+      id: 'gallery-handshake',
+      filename: 'handshake.jpg',
+      title: 'Agreement reached',
+      altText: 'A meeting closing with a handshake',
+      sizeBytes: 82340,
+      sortOrder: 6,
+    },
+    {
+      id: 'gallery-office-meeting',
+      filename: 'office-meeting.jpg',
+      title: 'A working meeting',
+      altText: 'A working meeting in the forum office',
+      sizeBytes: 78381,
+      sortOrder: 7,
+    },
+    {
+      id: 'gallery-working-session',
+      filename: 'working-session.jpg',
+      title: 'Preparing a session',
+      altText: 'Two colleagues working through papers at a session',
+      sizeBytes: 70676,
+      sortOrder: 8,
+    },
+  ]
+
+  // Anything not on the list above goes, so a database seeded with an earlier
+  // selection does not keep photographs the secretariat has since dropped.
+  await prisma.mediaAsset.deleteMany({
+    where: {
+      collectionId: collections['forum-gallery'],
+      id: { notIn: galleryAssetData.map((asset) => asset.id) },
+    },
+  })
+
+  for (const asset of galleryAssetData) {
+    const row = {
+      ...asset,
+      url: `/brand/hero/${asset.filename}`,
+      mimeType: 'image/jpeg',
+      kind: 'GALLERY',
+      collectionId: collections['forum-gallery'],
+      isPublic: true,
+    }
+    await prisma.mediaAsset.upsert({
+      where: { id: asset.id },
+      update: row,
+      create: row,
+    })
+  }
+  console.log(`  ✓ ${galleryAssetData.length} gallery photographs`)
+
+  /**
+   * The forum's own video.
+   *
+   * Self-hosted under `public/brand/video/`, unlike the rest of the video
+   * collection, which is expected to be recordings held on a platform that
+   * already has the captions and the bandwidth. A local URL is how the
+   * recordings page and the homepage tell the two apart: a `/`-relative one is
+   * played in place, anything else is linked out to its host.
+   *
+   * The clip is portrait because it was filmed on a phone, and it is shown
+   * that way rather than cropped — see `site/video-feature`. `thumbnailUrl` is
+   * deliberately null: there is no poster frame to hand, and the player shows
+   * the first frame once it has the metadata, which is the same picture.
+   */
+  const videoAssetData = [
+    {
+      id: 'video-inside-the-forum',
+      filename: 'inside-the-forum.mp4',
+      url: '/brand/video/inside-the-forum.mp4',
+      title: 'Inside the Freetown Business Forum',
+      altText:
+        'Footage from a Freetown Business Forum engagement, filmed by the secretariat',
+      caption:
+        'Forty seconds inside the forum — the meetings, the delegations and the people who make them happen.',
+      mimeType: 'video/mp4',
+      sizeBytes: 4873712,
+      sortOrder: 1,
+    },
+  ]
+
+  await prisma.mediaAsset.deleteMany({
+    where: {
+      collectionId: collections['forum-videos'],
+      id: { notIn: videoAssetData.map((asset) => asset.id) },
+    },
+  })
+
+  for (const asset of videoAssetData) {
+    const row = {
+      ...asset,
+      kind: 'VIDEO',
+      collectionId: collections['forum-videos'],
+      isPublic: true,
+    }
+    await prisma.mediaAsset.upsert({
+      where: { id: asset.id },
+      update: row,
+      create: row,
+    })
+  }
+  console.log(`  ✓ ${videoAssetData.length} video`)
 
   // ── Testimonials ──────────────────────────────────────────────────────────
 
@@ -1316,7 +1491,7 @@ Members receive a listing in the business directory, member rates on forum regis
   console.log(`  ✓ ${testimonialData.length} testimonials`)
 
   console.log('\nSeed complete.')
-  console.log(`  Sign in at /portal/login with admin@slbf.sl / SLBFdev2026!`)
+  console.log(`  Sign in at /portal/login with admin@fbf.sl / FBFdev2026!`)
 }
 
 main()

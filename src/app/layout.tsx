@@ -6,7 +6,6 @@ import './globals.css'
 import { Footer } from '@/components/site/footer'
 import { Header } from '@/components/site/header'
 import { getCurrentUser } from '@/lib/auth'
-import { formatDateRange } from '@/lib/format'
 import { isStaff } from '@/lib/rbac'
 import { getCurrentEvent, getSettings, setting } from '@/lib/settings'
 
@@ -39,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const siteName = setting(settings, 'site.name')
   const tagline = setting(settings, 'site.tagline')
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://slbf.sl'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fbf.sl'
 
   return {
     metadataBase: new URL(siteUrl),
@@ -91,9 +90,6 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
       <body className="flex min-h-full flex-col bg-white">
         <Header
           eventName={event?.name ?? null}
-          eventDates={
-            event ? formatDateRange(event.startDate, event.endDate) : null
-          }
           registrationOpen={event?.registrationOpen ?? false}
           userFirstName={user?.firstName ?? null}
           isStaff={isStaff(user?.role)}

@@ -87,6 +87,14 @@ export const SpeakerRole = {
 } as const
 export type SpeakerRole = (typeof SpeakerRole)[keyof typeof SpeakerRole]
 
+export const SPEAKER_ROLE_LABELS: Record<SpeakerRole, string> = {
+  SPEAKER: 'Speaker',
+  MODERATOR: 'Moderator',
+  CHAIR: 'Chair',
+  PANELLIST: 'Panellist',
+  KEYNOTE: 'Keynote',
+}
+
 export const SponsorTier = {
   PLATINUM: 'PLATINUM',
   GOLD: 'GOLD',
@@ -239,6 +247,17 @@ export const MediaKind = {
   DOWNLOAD: 'DOWNLOAD',
 } as const
 export type MediaKind = (typeof MediaKind)[keyof typeof MediaKind]
+
+/**
+ * Written as the secretariat would say it, not as the column stores it — the
+ * admin panel offers these three in a select, and "Photographs" is a clearer
+ * answer to "what is in this collection?" than "GALLERY".
+ */
+export const MEDIA_KIND_LABELS: Record<MediaKind, string> = {
+  GALLERY: 'Photographs',
+  VIDEO: 'Film & recordings',
+  DOWNLOAD: 'Documents & downloads',
+}
 
 export const FormType = {
   CONTACT: 'CONTACT',

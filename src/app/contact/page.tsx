@@ -31,6 +31,9 @@ export default async function ContactPage() {
 
   const email = setting(settings, 'contact.email')
   const phone = setting(settings, 'contact.phone')
+  // Optional, so it is read straight off the row rather than through
+  // `setting()` — an administrator who clears it should see the line go.
+  const phoneAlt = settings['contact.phoneAlt']
   const address = setting(settings, 'contact.address')
   const whatsapp = settings['contact.whatsapp']
   const mapUrl = settings['contact.mapUrl']
@@ -77,13 +80,25 @@ export default async function ContactPage() {
                 </a>
               </ContactRow>
 
-              <ContactRow icon="phone" label="Phone">
-                <a
-                  href={`tel:${phone.replace(/\s/g, '')}`}
-                  className="text-forest-700 underline underline-offset-2 hover:text-forest-800"
-                >
-                  {phone}
-                </a>
+              {/* One row, both numbers — the label pluralises so a reader is
+                  not left wondering which of the two is the real one. */}
+              <ContactRow icon="phone" label={phoneAlt ? 'Phone numbers' : 'Phone'}>
+                <div className="flex flex-col gap-1">
+                  <a
+                    href={`tel:${phone.replace(/\s/g, '')}`}
+                    className="text-forest-700 underline underline-offset-2 hover:text-forest-800"
+                  >
+                    {phone}
+                  </a>
+                  {phoneAlt && (
+                    <a
+                      href={`tel:${phoneAlt.replace(/\s/g, '')}`}
+                      className="text-forest-700 underline underline-offset-2 hover:text-forest-800"
+                    >
+                      {phoneAlt}
+                    </a>
+                  )}
+                </div>
               </ContactRow>
 
               {whatsapp && (

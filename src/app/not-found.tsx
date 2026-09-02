@@ -22,7 +22,7 @@ export default function NotFound() {
         <ButtonLink href="/" size="md">
           Back to the homepage
         </ButtonLink>
-        <ButtonLink href="/forum/agenda" variant="outline" size="md">
+        <ButtonLink href="/events/agenda" variant="outline" size="md">
           Forum agenda
         </ButtonLink>
         <ButtonLink href="/register" variant="outline" size="md">
