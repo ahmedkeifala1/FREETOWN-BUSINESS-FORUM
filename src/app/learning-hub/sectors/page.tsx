@@ -12,6 +12,7 @@ import {
   Section,
 } from '@/components/ui/layout'
 import { db } from '@/lib/db'
+import { getPageCopy } from '@/lib/settings'
 import { truncate } from '@/lib/format'
 
 /**
@@ -32,18 +33,21 @@ export const metadata: Metadata = {
 }
 
 export default async function SectorsPage() {
-  const sectors = await db.sector.findMany({
-    where: { isPublished: true },
-    orderBy: { sortOrder: 'asc' },
-    include: {
-      _count: {
-        select: {
-          opportunities: { where: { isPublished: true } },
-          listings: { where: { isPublished: true } },
+  const [sectors, copy] = await Promise.all([
+    db.sector.findMany({
+      where: { isPublished: true },
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        _count: {
+          select: {
+            opportunities: { where: { isPublished: true } },
+            listings: { where: { isPublished: true } },
+          },
         },
       },
-    },
-  })
+    }),
+    getPageCopy('learning-hub'),
+  ])
 
   return (
     <>
@@ -56,17 +60,23 @@ export default async function SectorsPage() {
       />
 
       <PageHero
-        eyebrow="Learning Hub"
-        title="Sector"
-        accent="guides"
-        lead="Where Sierra Leone's opportunity actually sits, sector by sector — what is there, what the incentives are, and which businesses and propositions are already in the room."
+        eyebrow={copy('sectorsEyebrow', 'Learning Hub')}
+        title={copy('sectorsHeroTitle', 'Sector')}
+        accent={copy('sectorsHeroAccent', 'guides')}
+        lead={copy(
+          'sectorsHeroLead',
+          "Where Sierra Leone's opportunity actually sits, sector by sector — what is there, what the incentives are, and which businesses and propositions are already in the room.",
+        )}
       />
 
       <Section tone="white" size="wide">
         {sectors.length === 0 ? (
           <EmptyState
-            title="Sector guides are being written"
-            message="They will be published here as they are completed."
+            title={copy('sectorsEmptyTitle', 'Sector guides are being written')}
+            message={copy(
+              'sectorsEmptyMessage',
+              'They will be published here as they are completed.',
+            )}
           />
         ) : (
           <CardGrid columns={3}>
@@ -105,8 +115,11 @@ export default async function SectorsPage() {
       </Section>
 
       <CtaBand
-        title="The wider picture"
-        lead="The doing-business guide covers what applies whichever sector you are in — registration, tax, land, labour and the incentives on offer."
+        title={copy('sectorsCtaTitle', 'The wider picture')}
+        lead={copy(
+          'sectorsCtaLead',
+          'The doing-business guide covers what applies whichever sector you are in — registration, tax, land, labour and the incentives on offer.',
+        )}
         tone="harbour"
       >
         <ButtonLink

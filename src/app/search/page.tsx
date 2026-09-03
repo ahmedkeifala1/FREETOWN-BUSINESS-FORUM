@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/layout'
 import { db } from '@/lib/db'
 import { truncate } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Site search.
@@ -47,7 +48,7 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string }>
 }) {
-  const { q } = await searchParams
+  const [{ q }, copy] = await Promise.all([searchParams, getPageCopy('search')])
   const query = (q ?? '').trim()
 
   const results = query.length >= 2 ? await search(query) : []
@@ -61,7 +62,11 @@ export default async function SearchPage({
         ]}
       />
 
-      <PageHero eyebrow="Search" title="Find it on" accent="FBF">
+      <PageHero
+        eyebrow={copy('eyebrow', 'Search')}
+        title={copy('heroTitle', 'Find it on')}
+        accent={copy('heroAccent', 'FBF')}
+      >
         <form action="/search" method="get" className="w-full max-w-xl">
           <label htmlFor="q" className="sr-only">
             Search the site
@@ -74,7 +79,10 @@ export default async function SearchPage({
               type="search"
               defaultValue={query}
               autoFocus
-              placeholder="Speakers, sectors, articles, businesses…"
+              placeholder={copy(
+                'placeholder',
+                'Speakers, sectors, articles, businesses…',
+              )}
               className="min-h-12 w-full border border-white/30 bg-white/10 px-4 py-3 text-base text-white placeholder:text-white/45 focus:border-gold-400"
             />
             <button
@@ -92,14 +100,19 @@ export default async function SearchPage({
         {query.length < 2 ? (
           <Container size="narrow" className="px-0">
             <p className="text-ink-600">
-              Type at least two characters. Search covers articles, speakers,
-              sectors and the business directory.
+              {copy(
+                'promptMessage',
+                'Type at least two characters. Search covers articles, speakers, sectors and the business directory.',
+              )}
             </p>
           </Container>
         ) : results.length === 0 ? (
           <EmptyState
             title={`Nothing found for “${query}”`}
-            message="Try a shorter or more general term — a sector name, an organisation, or a speaker's surname."
+            message={copy(
+              'emptyMessage',
+              "Try a shorter or more general term — a sector name, an organisation, or a speaker's surname.",
+            )}
           >
             <Link href="/search" className="font-medium text-forest-700 hover:underline">
               Start again

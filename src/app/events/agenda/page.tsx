@@ -25,7 +25,7 @@ import {
   formatWeekday,
   initials,
 } from '@/lib/format'
-import { getCurrentEvent } from '@/lib/settings'
+import { getCurrentEvent, getPageCopy } from '@/lib/settings'
 
 /**
  * Agenda / programme (SDR §4.5).
@@ -60,9 +60,10 @@ export default async function AgendaPage({
 }: {
   searchParams: Promise<{ day?: string; track?: string }>
 }) {
-  const [{ day, track }, event] = await Promise.all([
+  const [{ day, track }, event, copy] = await Promise.all([
     searchParams,
     getCurrentEvent(),
+    getPageCopy('agenda'),
   ])
 
   if (!event) {
@@ -70,10 +71,13 @@ export default async function AgendaPage({
       <>
         <AgendaCrumbs />
         <PageHero
-          eyebrow="Agenda"
-          title="The programme is being"
-          accent="built"
-          lead="Sessions are published here as they are confirmed. Register and you will be told when the full programme goes live."
+          eyebrow={copy('pendingEyebrow', 'Agenda')}
+          title={copy('pendingTitle', 'The programme is being')}
+          accent={copy('pendingAccent', 'built')}
+          lead={copy(
+            'pendingLead',
+            'Sessions are published here as they are confirmed. Register and you will be told when the full programme goes live.',
+          )}
         />
       </>
     )
@@ -153,8 +157,8 @@ export default async function AgendaPage({
 
       <PageHero
         eyebrow={formatDateRange(event.startDate, event.endDate)}
-        title="The"
-        accent="programme"
+        title={copy('heroTitle', 'The')}
+        accent={copy('heroAccent', 'programme')}
         lead={`${sessions.length} sessions over ${days.length} ${
           days.length === 1 ? 'day' : 'days'
         } at ${event.venueName}. Pick a day, then narrow by track.`}
@@ -291,8 +295,11 @@ export default async function AgendaPage({
       )}
 
       <CtaBand
-        title="Seats are allocated in registration order"
-        lead="Roundtables and workshops have capped numbers. Registering early is how you get into the ones you came for."
+        title={copy('ctaTitle', 'Seats are allocated in registration order')}
+        lead={copy(
+          'ctaLead',
+          'Roundtables and workshops have capped numbers. Registering early is how you get into the ones you came for.',
+        )}
       >
         <ButtonLink
           href="/register"

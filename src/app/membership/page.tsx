@@ -21,7 +21,12 @@ import {
 import { db } from '@/lib/db'
 import { parseJsonColumn } from '@/lib/format'
 import { formatMoney } from '@/lib/money'
-import { getCurrentEvent, getPageBlocks, getSettings } from '@/lib/settings'
+import {
+  getCurrentEvent,
+  getPageBlocks,
+  getSettings,
+  type PageCopy,
+} from '@/lib/settings'
 
 /**
  * Membership — why join, what it costs, and what it gets you (SDR §4.10).
@@ -114,6 +119,11 @@ export default async function MembershipPage() {
       : Promise.resolve([]),
   ])
 
+  // The same `copy(key, fallback)` contract the rest of the site uses, built
+  // over blocks this page already has in hand. The bands below take it as a
+  // prop because they are functions in this file, not routes of their own.
+  const copy = (key: string, fallback: string) => blocks[key] || fallback
+
   const standardRate = ticketTypes.find((ticket) => ticket.slug === 'standard')
   const memberRate = ticketTypes.find((ticket) => ticket.slug === 'member')
 
@@ -160,21 +170,21 @@ export default async function MembershipPage() {
         photos={heroPhotos}
       />
 
-      <HowItWorks steps={steps} />
+      <HowItWorks steps={steps} copy={copy} />
 
-      <AccessBand items={access} photos={bandPhotos} />
+      <AccessBand items={access} photos={bandPhotos} copy={copy} />
 
       <Section tone="white" size="wide">
         <SectionHeading
-          eyebrow="What you get"
-          title="Four tiers, one membership"
+          eyebrow={copy('tiersEyebrow', 'What you get')}
+          title={copy('tiersTitle', 'Four tiers, one membership')}
           lead={blocks.intro}
           align="center"
         />
         <MembershipTabs tabs={tabs} />
       </Section>
 
-      <MemberStrip listings={listings} />
+      <MemberStrip listings={listings} copy={copy} />
 
       {standardRate && memberRate && (
         <MemberRate
@@ -184,20 +194,26 @@ export default async function MembershipPage() {
         />
       )}
 
-      <UpcomingSessions sessions={sessions} />
+      <UpcomingSessions sessions={sessions} copy={copy} />
 
       <Section tone="muted" size="wide">
         <SectionHeading
-          eyebrow="Questions"
-          title="Before you apply"
-          lead="The things the secretariat is asked most often. If yours is not here, the contact form reaches a person, not a queue."
+          eyebrow={copy('faqEyebrow', 'Questions')}
+          title={copy('faqTitle', 'Before you apply')}
+          lead={copy(
+            'faqLead',
+            'The things the secretariat is asked most often. If yours is not here, the contact form reaches a person, not a queue.',
+          )}
         />
         <Faq items={faqs} />
       </Section>
 
       <CtaBand
-        title="Join FBF"
-        lead="Applications are decided within five working days. You can save the form and come back to it."
+        title={copy('ctaTitle', 'Join FBF')}
+        lead={copy(
+          'ctaLead',
+          'Applications are decided within five working days. You can save the form and come back to it.',
+        )}
       >
         <ButtonLink
           href="/membership/apply"
@@ -323,14 +339,20 @@ function MembershipHero({
 
 // ── How it works ────────────────────────────────────────────────────────────
 
-function HowItWorks({ steps }: { steps: Array<{ title: string; body: string }> }) {
+function HowItWorks({
+  steps,
+  copy,
+}: {
+  steps: Array<{ title: string; body: string }>
+  copy: PageCopy
+}) {
   if (steps.length === 0) return null
 
   return (
     <Section tone="white" size="wide">
       <SectionHeading
-        eyebrow="How it works"
-        title="Three steps, about ten minutes"
+        eyebrow={copy('stepsEyebrow', 'How it works')}
+        title={copy('stepsTitle', 'Three steps, about ten minutes')}
       />
 
       <ol className="mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8">
@@ -394,7 +416,9 @@ type AccessItem = {
 function AccessBand({
   items,
   photos,
+  copy,
 }: {
+  copy: PageCopy
   items: AccessItem[]
   photos: Array<{ id: string; url: string; altText: string | null }>
 }) {
@@ -403,8 +427,8 @@ function AccessBand({
   return (
     <Section tone="muted" size="wide">
       <SectionHeading
-        eyebrow="What it opens"
-        title="A membership gives you access to…"
+        eyebrow={copy('accessEyebrow', 'What it opens')}
+        title={copy('accessTitle', 'A membership gives you access to…')}
       />
 
       <ol className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -467,21 +491,30 @@ function AccessBand({
  * The card is the homepage's, shared rather than copied — see
  * `site/session-card`.
  */
-function UpcomingSessions({ sessions }: { sessions: SessionCardSession[] }) {
+function UpcomingSessions({
+  sessions,
+  copy,
+}: {
+  sessions: SessionCardSession[]
+  copy: PageCopy
+}) {
   if (sessions.length === 0) return null
 
   return (
     <Section tone="white" size="wide">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <SectionHeading
-          eyebrow="What's on"
-          title="Where a membership takes you"
-          lead="Members are priced into the forum at the member rate. This is the room it buys."
+          eyebrow={copy('sessionsEyebrow', "What's on")}
+          title={copy('sessionsTitle', 'Where a membership takes you')}
+          lead={copy(
+            'sessionsLead',
+            'Members are priced into the forum at the member rate. This is the room it buys.',
+          )}
           className="mb-0"
         />
 
         <ButtonLink href="/events/agenda" variant="outline" size="md">
-          Full agenda
+          {copy('sessionsLinkLabel', 'Full agenda')}
         </ButtonLink>
       </div>
 
@@ -498,7 +531,9 @@ function UpcomingSessions({ sessions }: { sessions: SessionCardSession[] }) {
 
 function MemberStrip({
   listings,
+  copy,
 }: {
+  copy: PageCopy
   listings: Array<{
     id: string
     slug: string
@@ -511,9 +546,12 @@ function MemberStrip({
   return (
     <Section tone="muted" size="wide">
       <SectionHeading
-        eyebrow="In membership"
-        title="Who is already in the room"
-        lead="A sample of the organisations listed in the national business directory."
+        eyebrow={copy('membersEyebrow', 'In membership')}
+        title={copy('membersTitle', 'Who is already in the room')}
+        lead={copy(
+          'membersLead',
+          'A sample of the organisations listed in the national business directory.',
+        )}
         align="center"
       />
 

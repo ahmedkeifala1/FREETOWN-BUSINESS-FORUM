@@ -12,6 +12,7 @@ import {
   SubmitButton,
   Textarea,
 } from '@/components/ui/form'
+import { UploadField } from '@/components/ui/upload'
 import { deleteSpeaker, saveSpeaker } from '@/lib/actions/admin-programme'
 import { idleState } from '@/lib/actions/types'
 
@@ -54,9 +55,12 @@ export type SpeakerDefaults = {
 export function SpeakerForm({
   sectors,
   defaults,
+  uploadsEnabled,
 }: {
   sectors: { id: string; name: string }[]
   defaults: SpeakerDefaults | null
+  /** Whether a blob store is attached — see lib/uploads. Decided on the server. */
+  uploadsEnabled: boolean
 }) {
   const [state, formAction] = useActionState(saveSpeaker, idleState)
 
@@ -203,14 +207,15 @@ export function SpeakerForm({
           </legend>
 
           <Field
-            label="Photograph URL"
+            label="Photograph"
             name="photoUrl"
             hint="A square portrait reads best — the wall and the agenda both crop to a square. Without one, their initials are shown."
             error={errors?.photoUrl}
           >
-            <Input
+            <UploadField
               name="photoUrl"
-              type="url"
+              kind="image"
+              enabled={uploadsEnabled}
               placeholder="https://"
               defaultValue={defaults?.photoUrl ?? ''}
               error={errors?.photoUrl}

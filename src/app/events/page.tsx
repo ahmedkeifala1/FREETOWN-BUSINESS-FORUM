@@ -26,7 +26,7 @@ import {
   pluralise,
   truncate,
 } from '@/lib/format'
-import { getCurrentEvent } from '@/lib/settings'
+import { getCurrentEvent, getPageCopy } from '@/lib/settings'
 
 /**
  * Events — the forum's overview and programme (§4.4).
@@ -73,7 +73,11 @@ export default async function EventsPage({
 }: {
   searchParams: Promise<{ day?: string }>
 }) {
-  const [{ day }, event] = await Promise.all([searchParams, getCurrentEvent()])
+  const [{ day }, event, copy] = await Promise.all([
+    searchParams,
+    getCurrentEvent(),
+    getPageCopy('events'),
+  ])
 
   const [sessions, speakerCount, speakerPhotos, galleryPhotos] = await Promise.all([
     event
@@ -142,10 +146,13 @@ export default async function EventsPage({
     return (
       <>
         <PageHero
-          eyebrow="Events"
-          title="The next forum is being"
-          accent="planned"
-          lead="Dates for the next edition have not been published yet. Join the briefing list and you will hear before it is announced publicly."
+          eyebrow={copy('eyebrow', 'Events')}
+          title={copy('pendingTitle', 'The next forum is being')}
+          accent={copy('pendingAccent', 'planned')}
+          lead={copy(
+            'pendingLead',
+            'Dates for the next edition have not been published yet. Join the briefing list and you will hear before it is announced publicly.',
+          )}
         />
         <Breadcrumbs items={CRUMBS} />
       </>
@@ -197,15 +204,18 @@ export default async function EventsPage({
             </span>
 
             <p className="mt-6 text-sm font-semibold uppercase tracking-widest text-white/85">
-              Events
+              {copy('eyebrow', 'Events')}
             </p>
 
             <h1 className="mt-6 font-display text-4xl font-extrabold uppercase leading-[0.95] tracking-tighter sm:text-5xl lg:text-6xl">
-              Meet the people building Sierra Leone’s economy across{' '}
+              {copy(
+                'heroTitle',
+                'Meet the people building Sierra Leone’s economy across',
+              )}{' '}
               <span className="text-gold-400">
                 {sessions.length > 0
                   ? `${sessions.length} ${pluralise(sessions.length, 'session')} over ${days.length} ${pluralise(days.length, 'day')}`
-                  : 'three days in Freetown'}
+                  : copy('heroAccentFallback', 'three days in Freetown')}
               </span>
               .
             </h1>
@@ -288,7 +298,7 @@ export default async function EventsPage({
               href="/events/agenda"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-forest-700 hover:underline"
             >
-              See the full agenda
+              {copy('agendaLinkLabel', 'See the full agenda')}
               <Icon name="arrowRight" className="size-4" />
             </Link>
           </div>
@@ -434,8 +444,8 @@ export default async function EventsPage({
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-5">
               <SectionHeading
-                eyebrow="The theme"
-                title={event.theme || 'This year’s forum'}
+                eyebrow={copy('themeEyebrow', 'The theme')}
+                title={event.theme || copy('themeFallback', 'This year’s forum')}
               />
             </div>
 
@@ -463,8 +473,11 @@ export default async function EventsPage({
       )}
 
       <CtaBand
-        title="Register for the forum"
-        lead="Member rates apply for the whole of your membership year, for as many colleagues as you send."
+        title={copy('ctaTitle', 'Register for the forum')}
+        lead={copy(
+          'ctaLead',
+          'Member rates apply for the whole of your membership year, for as many colleagues as you send.',
+        )}
       >
         <ButtonLink
           href="/register"

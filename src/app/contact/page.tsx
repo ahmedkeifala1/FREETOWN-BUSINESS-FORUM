@@ -8,7 +8,7 @@ import {
   Section,
   SectionHeading,
 } from '@/components/ui/layout'
-import { getSettings, setting } from '@/lib/settings'
+import { getPageCopy, getSettings, setting } from '@/lib/settings'
 
 /**
  * Contact Us (§4.14).
@@ -27,7 +27,10 @@ export const metadata: Metadata = {
 }
 
 export default async function ContactPage() {
-  const settings = await getSettings()
+  const [settings, copy] = await Promise.all([
+    getSettings(),
+    getPageCopy('contact'),
+  ])
 
   const email = setting(settings, 'contact.email')
   const phone = setting(settings, 'contact.phone')
@@ -48,18 +51,21 @@ export default async function ContactPage() {
       />
 
       <PageHero
-        eyebrow="Contact us"
-        title="Talk to the"
-        accent="secretariat"
-        lead="Membership, sponsorship, the Deal Room, or a question about attending — this reaches a person, not a queue. We reply within two working days."
+        eyebrow={copy('eyebrow', 'Contact us')}
+        title={copy('heroTitle', 'Talk to the')}
+        accent={copy('heroAccent', 'secretariat')}
+        lead={copy(
+          'heroLead',
+          'Membership, sponsorship, the Deal Room, or a question about attending — this reaches a person, not a queue. We reply within two working days.',
+        )}
       />
 
       <Section tone="white" size="wide">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
             <SectionHeading
-              eyebrow="Send a message"
-              title="Make an enquiry"
+              eyebrow={copy('formEyebrow', 'Send a message')}
+              title={copy('formTitle', 'Make an enquiry')}
               className="mb-8"
             />
             <ContactForm />
@@ -67,7 +73,7 @@ export default async function ContactPage() {
 
           <div className="lg:col-span-5">
             <h2 className="font-display text-lg font-semibold text-ink-950">
-              Or reach us directly
+              {copy('directHeading', 'Or reach us directly')}
             </h2>
 
             <dl className="mt-6 space-y-6">

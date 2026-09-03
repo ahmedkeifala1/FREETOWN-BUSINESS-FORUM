@@ -29,14 +29,16 @@ import {
  * This is the screen that lets the secretariat put this year's photographs on
  * the wall themselves.
  *
- * **Nothing is uploaded here.** An asset is a *reference* to a file — a path
- * this site already serves under `public/`, or a full address on whatever
+ * **An asset is a *reference* to a file** — a path this site already serves
+ * under `public/`, a file in the blob store, or a full address on whatever
  * platform holds it. The distinction is load-bearing rather than incidental:
  * the homepage plays a `/`-relative film in place and links a hosted one out to
- * its host, so flattening the two would change what the page does. Accepting
- * uploads would mean writable storage the app deliberately does not have —
- * `public/` is baked into the deployment — and a half-working upload button is
- * worse than an address field that plainly asks for an address.
+ * its host, so flattening the two would change what the page does.
+ *
+ * Files can now be uploaded, and nothing below changed to allow it. The upload
+ * happens in the browser against object storage and yields an address, which is
+ * posted into the same `url` field that was always here — see `lib/uploads`.
+ * This action still only ever stores a string.
  *
  * **An asset's kind comes from its collection**, and its MIME type and size
  * come from the file. Everything that can be derived is, because every field an
@@ -131,30 +133,69 @@ function filenameFor(url: string, title: string | null): string {
 /**
  * How big the file is, read from the file itself.
  *
- * Only for assets this site serves: those are on disk under `public/`, and
- * reading the size beats asking someone to look up a byte count that is stale
- * the moment the file is replaced. A remote file is left at 0, which
- * `formatBytes` renders as nothing at all rather than as "0 bytes".
+ * Never typed. A byte count someone looked up is stale the moment the file is
+ * replaced, and the downloads page prints it next to the link — "PDF, 2.4 MB"
+ * is a promise about what a delegate on a metered connection is about to pay
+ * for.
  *
- * The resolved path is checked to be inside `public/` before it is touched. The
- * address has already been through `assetUrlSchema`, which rejects anything not
- * beginning with a single slash, but a `..` inside an otherwise valid path
- * would still climb out of the directory — and this runs as the server.
+ * Two sources, because there are now two kinds of file. One this site serves is
+ * on disk under `public/` and is measured with `stat`. Anything else is asked
+ * for its `Content-Length` with a HEAD request, which is how an uploaded file
+ * in the blob store gets a size at all — that is the common case since uploads
+ * landed, and leaving every uploaded PDF at 0 would quietly empty the size
+ * label the downloads page was built around.
+ *
+ * Both paths return 0 rather than throwing. A file that is not there yet is not
+ * an error: an editor may well add the row before the photographs are copied
+ * into the deployment, and `formatBytes` renders 0 as nothing at all rather
+ * than as "0 bytes".
  */
 async function sizeOf(url: string): Promise<number> {
-  if (!url.startsWith('/')) return 0
+  if (!url.startsWith('/')) return remoteSizeOf(url)
 
   const root = path.join(process.cwd(), 'public')
   const target = path.resolve(root, `.${decodeURIComponent(pathnameOf(url))}`)
 
+  // The address has already been through `assetUrlSchema`, which rejects
+  // anything not beginning with a single slash, but a `..` inside an otherwise
+  // valid path would still climb out of the directory — and this runs as the
+  // server.
   if (target !== root && !target.startsWith(root + path.sep)) return 0
 
   try {
     const info = await stat(target)
     return info.isFile() ? info.size : 0
   } catch {
-    // A file that is not there yet is not an error: an editor may well add the
-    // row before the photographs are copied into the deployment.
+    return 0
+  }
+}
+
+/**
+ * The size a remote host reports for a file, or 0 if it will not say.
+ *
+ * A HEAD is used rather than a range request because the only thing wanted is
+ * the header; nothing downloads the file. The timeout matters more than it
+ * looks: this runs inside the save, so a host that accepts the connection and
+ * then never answers would hold the editor's form open until the function
+ * itself timed out. Three seconds is longer than any store needs and shorter
+ * than anyone waits.
+ *
+ * Every failure — a refused HEAD, a redirect chain, a host that omits the
+ * header, a plain 404 — lands on 0, which is the same "we do not know" the
+ * local path returns for a file that has not been copied in yet.
+ */
+async function remoteSizeOf(url: string): Promise<number> {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(3000),
+    })
+
+    if (!response.ok) return 0
+
+    const length = Number(response.headers.get('content-length'))
+    return Number.isFinite(length) && length > 0 ? length : 0
+  } catch {
     return 0
   }
 }

@@ -132,11 +132,27 @@ Built and verified (`npm run build` and `npm run typecheck` both clean):
   is the only removal offered
 - Media collections (§4.14): the collections the homepage gallery, the film
   band, the recordings page and the downloads page read, and the files in them.
-  Files are added by address — a path under `public/` or a link to the platform
-  holding them — not uploaded: `public/` is baked into the deployment, and the
-  local/remote distinction is what decides whether a film plays in place or is
-  linked out. An asset's kind follows its collection, and its type and size are
-  read from the file rather than typed
+  A file is stored as an *address* — a path under `public/`, a file in the blob
+  store, or a link to the platform holding it — and the local/remote
+  distinction is what decides whether a film plays in place or is linked out.
+  An asset's kind follows its collection, and its type and size are read from
+  the file rather than typed
+- File uploads (§4.14): where a Vercel Blob store is attached
+  (`BLOB_READ_WRITE_TOKEN`), the media library, the article and speaker forms,
+  the forum form and the page editor each offer a file picker beside their
+  address field. The file goes from the editor's browser straight to the store
+  — a serverless function may only take about 4.5 MB of request body, which is
+  smaller than the files most worth uploading — and only the resulting address
+  is posted back, so nothing downstream of the address changed. With no store
+  attached the pickers are not rendered and staff paste an address, which is
+  still how anything already hosted elsewhere gets onto the site
+- Page copy across the whole public site (§15, FR-01): every heading, eyebrow,
+  standfirst, empty-state message and button label on the public pages is a
+  block in the page editor. The wording in each route file is kept as a
+  *fallback*, so an unwritten or unpublished block leaves the page reading
+  exactly as it always has rather than leaving a hole — `getPageCopy` in
+  `src/lib/settings.ts` is the whole contract, and `src/lib/cms-pages.ts`
+  declares which keys each page has
 - Self-hosted video (§4.14): the homepage film band and the recordings page.
   A `/`-relative asset URL is a file this site serves and is played in place;
   anything else is a recording on a platform and is linked out to its host.
@@ -146,6 +162,9 @@ Not yet built:
 
 - Ticket types, promo codes and sponsors — seeded, and editable only in the
   database
+- The header and footer navigation labels, which name routes rather than being
+  editorial, and the leadership, partner and sector *records* themselves, which
+  are seeded. The wording around all of them is editable; the rows are not
 - Refunds (the ledger is append-only, so a refund is its own action, not an
   undo of a settlement)
 
@@ -165,8 +184,9 @@ Set every variable in `.env.example` in the host environment. In production:
 
 The app is deployed from this repository. Vercel's filesystem is ephemeral and
 read-only, which is the whole reason the database is Postgres rather than a
-file — and the same reason the media library stores *references* to files
-rather than accepting uploads (see `src/lib/actions/admin-media.ts`).
+file — and the same reason an uploaded file goes to a Blob store rather than to
+`public/` (see `src/lib/uploads.ts`). The media library still stores
+*references* either way; an upload simply produces one.
 
 **First deployment, in order.** The order matters: the build runs
 `prisma migrate deploy`, so the database has to exist before the first build.
@@ -194,6 +214,12 @@ rather than accepting uploads (see `src/lib/actions/admin-media.ts`).
 6. **Change the seeded passwords.** The seed's accounts share a published
    password (see *Getting started*) and are development fixtures, not staff
    credentials.
+7. **Create the Blob store**, if staff are to upload files rather than paste
+   addresses. *Storage → Create → Blob*, then connect it to the project;
+   Vercel adds `BLOB_READ_WRITE_TOKEN` itself and the next deployment picks it
+   up. This step is genuinely optional and can be done at any time — the admin
+   panel renders the file pickers only when the token is present, so nothing
+   breaks before it and nothing needs changing after it.
 
 Later deployments need none of this: pushing to the default branch runs
 `prisma migrate deploy` and then the build, so a committed migration is applied

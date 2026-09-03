@@ -20,6 +20,7 @@ import {
   paragraphs,
   truncate,
 } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Speaker detail (SDR §4.6: "bio, organisation, and their sessions (linked)").
@@ -83,7 +84,10 @@ export default async function SpeakerPage({
   params: Promise<Params>
 }) {
   const { slug } = await params
-  const speaker = await getSpeaker(slug)
+  const [speaker, copy] = await Promise.all([
+    getSpeaker(slug),
+    getPageCopy('speakers'),
+  ])
 
   if (!speaker) notFound()
 
@@ -264,8 +268,11 @@ export default async function SpeakerPage({
       </Section>
 
       <CtaBand
-        title="Be in the room"
-        lead="Registration covers every session on the programme, including the roundtables."
+        title={copy('detailCtaTitle', 'Be in the room')}
+        lead={copy(
+          'detailCtaLead',
+          'Registration covers every session on the programme, including the roundtables.',
+        )}
       >
         <ButtonLink
           href="/register"

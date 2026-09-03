@@ -9,6 +9,7 @@ import {
   Section,
 } from '@/components/ui/layout'
 import { db } from '@/lib/db'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Apply for funding (SDR §4.12 "businesses submit propositions", FR-15).
@@ -50,11 +51,17 @@ const STEPS = [
 ]
 
 export default async function ApplyForFundingPage() {
-  const sectors = await db.sector.findMany({
-    where: { isPublished: true },
-    orderBy: { sortOrder: 'asc' },
-    select: { id: true, name: true },
-  })
+  const [sectors, copy] = await Promise.all([
+    db.sector.findMany({
+      where: { isPublished: true },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, name: true },
+    }),
+    // The apply page's copy lives with the rest of the Deal Room's rather than
+    // in a page of its own: it is one form on one route, and a CMS entry per
+    // route would leave the editor scrolling past pages holding four words.
+    getPageCopy('deal-room'),
+  ])
 
   return (
     <>
@@ -67,10 +74,13 @@ export default async function ApplyForFundingPage() {
       />
 
       <PageHero
-        eyebrow="Deal Room"
-        title="Apply for"
-        accent="funding"
-        lead="Tell us what the business does, what it needs and what the money is for. It takes about twenty minutes, and you can be as blunt as you like — this goes to the secretariat, not to investors."
+        eyebrow={copy('applyEyebrow', 'Deal Room')}
+        title={copy('applyTitle', 'Apply for')}
+        accent={copy('applyAccent', 'funding')}
+        lead={copy(
+          'applyLead',
+          'Tell us what the business does, what it needs and what the money is for. It takes about twenty minutes, and you can be as blunt as you like — this goes to the secretariat, not to investors.',
+        )}
       />
 
       <Section tone="white" size="wide">

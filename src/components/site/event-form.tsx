@@ -11,6 +11,7 @@ import {
   SubmitButton,
   Textarea,
 } from '@/components/ui/form'
+import { UploadField } from '@/components/ui/upload'
 import { saveEvent } from '@/lib/actions/admin-events'
 import { idleState } from '@/lib/actions/types'
 
@@ -55,7 +56,14 @@ export type EventDefaults = {
   registrationOpen: boolean
 }
 
-export function EventForm({ defaults }: { defaults: EventDefaults | null }) {
+export function EventForm({
+  defaults,
+  uploadsEnabled,
+}: {
+  defaults: EventDefaults | null
+  /** Whether a blob store is attached — see lib/uploads. Decided on the server. */
+  uploadsEnabled: boolean
+}) {
   const [state, formAction] = useActionState(saveEvent, idleState)
 
   const errors = state.status === 'error' ? state.errors : undefined
@@ -340,8 +348,10 @@ export function EventForm({ defaults }: { defaults: EventDefaults | null }) {
           hint="A path on this site such as /brand/hero/one.jpg, or a full address elsewhere."
           error={errors?.heroImageUrl}
         >
-          <Input
+          <UploadField
             name="heroImageUrl"
+            kind="image"
+            enabled={uploadsEnabled}
             defaultValue={defaults?.heroImageUrl ?? ''}
             placeholder="/brand/hero/opening.jpg"
             error={errors?.heroImageUrl}

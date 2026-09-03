@@ -21,6 +21,7 @@ import {
   paragraphs,
   truncate,
 } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * An article (SDR §4.13: "title, hero image, author, date, body, share
@@ -83,7 +84,10 @@ export default async function ArticlePage({
   params: Promise<Params>
 }) {
   const { slug } = await params
-  const article = await getArticle(slug)
+  const [article, copy] = await Promise.all([
+    getArticle(slug),
+    getPageCopy('blog'),
+  ])
 
   if (!article) notFound()
 
@@ -238,7 +242,10 @@ export default async function ArticlePage({
 
       {others.length > 0 && (
         <Section tone="muted" size="wide">
-          <SectionHeading eyebrow="Keep reading" title="More from the forum" />
+          <SectionHeading
+            eyebrow={copy('articleMoreEyebrow', 'Keep reading')}
+            title={copy('articleMoreTitle', 'More from the forum')}
+          />
 
           <CardGrid columns={3} className="mt-10">
             {others.map((other) => (
@@ -275,8 +282,11 @@ export default async function ArticlePage({
       )}
 
       <CtaBand
-        title="Get this by email"
-        lead="The monthly briefing carries the investment and policy news that does not make it onto the blog."
+        title={copy('articleCtaTitle', 'Get this by email')}
+        lead={copy(
+          'articleCtaLead',
+          'The monthly briefing carries the investment and policy news that does not make it onto the blog.',
+        )}
       >
         <ButtonLink
           href="/membership"

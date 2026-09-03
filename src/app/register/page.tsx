@@ -17,7 +17,7 @@ import { formatDateRange } from '@/lib/format'
 import { formatMoney, isCurrency, type Currency } from '@/lib/money'
 import { hasUsdPrice, buildQuote } from '@/lib/pricing'
 import { listTicketTypes, quoteFor, remaining } from '@/lib/registration'
-import { getCurrentEvent } from '@/lib/settings'
+import { getCurrentEvent, getPageCopy } from '@/lib/settings'
 
 /**
  * Register — step 1, ticket selection (SDR §4.9).
@@ -55,22 +55,34 @@ export default async function RegisterPage({
 }: {
   searchParams: Promise<Search>
 }) {
-  const [params, event] = await Promise.all([searchParams, getCurrentEvent()])
+  const [params, event, copy] = await Promise.all([
+    searchParams,
+    getCurrentEvent(),
+    getPageCopy('register'),
+  ])
 
   if (!event) {
     return (
       <>
         <RegisterCrumbs />
         <PageHero
-          eyebrow="Register"
-          title="Registration is not"
-          accent="open"
-          lead="Dates for the next forum have not been announced. Ask the secretariat to tell you when they are."
+          eyebrow={copy('eyebrow', 'Register')}
+          title={copy('closedTitle', 'Registration is not')}
+          accent={copy('closedAccent', 'open')}
+          lead={copy(
+            'closedLead',
+            'Dates for the next forum have not been announced. Ask the secretariat to tell you when they are.',
+          )}
         />
         <Section tone="white">
-          <EmptyState title="No forum is currently open for registration">
+          <EmptyState
+            title={copy(
+              'closedEmptyTitle',
+              'No forum is currently open for registration',
+            )}
+          >
             <ButtonLink href="/contact" variant="primary">
-              Tell me when it opens
+              {copy('notifyLabel', 'Tell me when it opens')}
             </ButtonLink>
           </EmptyState>
         </Section>
@@ -117,17 +129,20 @@ export default async function RegisterPage({
         <RegisterCrumbs />
         <PageHero
           eyebrow={formatDateRange(event.startDate, event.endDate)}
-          title="Registration opens"
-          accent="soon"
+          title={copy('soonTitle', 'Registration opens')}
+          accent={copy('soonAccent', 'soon')}
           lead={`Tickets for ${event.name} are not on sale yet. The secretariat will announce the date.`}
         />
         <Section tone="white">
           <EmptyState
-            title="Tickets are not on sale"
-            message="Ask to be told when registration opens, and you will hear before it is announced publicly."
+            title={copy('soonEmptyTitle', 'Tickets are not on sale')}
+            message={copy(
+              'soonEmptyMessage',
+              'Ask to be told when registration opens, and you will hear before it is announced publicly.',
+            )}
           >
             <ButtonLink href="/contact" variant="primary">
-              Tell me when it opens
+              {copy('notifyLabel', 'Tell me when it opens')}
             </ButtonLink>
           </EmptyState>
         </Section>

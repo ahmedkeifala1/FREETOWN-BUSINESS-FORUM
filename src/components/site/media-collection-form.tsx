@@ -12,6 +12,7 @@ import {
   SubmitButton,
   Textarea,
 } from '@/components/ui/form'
+import { UploadField } from '@/components/ui/upload'
 import {
   deleteCollection,
   saveCollection,
@@ -51,9 +52,12 @@ export type CollectionDefaults = {
 export function MediaCollectionForm({
   defaults,
   canDelete,
+  uploadsEnabled,
 }: {
   defaults: CollectionDefaults | null
   canDelete: boolean
+  /** Whether a blob store is attached — see lib/uploads. Decided on the server. */
+  uploadsEnabled: boolean
 }) {
   const [state, formAction] = useActionState(saveCollection, idleState)
 
@@ -160,8 +164,10 @@ export function MediaCollectionForm({
           hint="A path on this site such as /brand/hero/one.jpg, or a full address elsewhere."
           error={errors?.coverImageUrl}
         >
-          <Input
+          <UploadField
             name="coverImageUrl"
+            kind="image"
+            enabled={uploadsEnabled}
             defaultValue={defaults?.coverImageUrl ?? ''}
             placeholder="/brand/hero/one.jpg"
             error={errors?.coverImageUrl}

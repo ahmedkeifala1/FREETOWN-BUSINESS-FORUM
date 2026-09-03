@@ -11,6 +11,7 @@ import {
   Textarea,
 } from '@/components/ui/form'
 import { Icon } from '@/components/ui/icon'
+import { UploadField, type UploadKindName } from '@/components/ui/upload'
 import { deleteAsset, saveAsset } from '@/lib/actions/admin-media'
 import { idleState } from '@/lib/actions/types'
 import { MediaKind } from '@/lib/enums'
@@ -27,8 +28,12 @@ import { MediaKind } from '@/lib/enums'
  * name, order, whether it is public — is what the person scanning the list came
  * for, and the eight fields behind it are not.
  *
- * Nothing is uploaded. An asset is an address: a path this site serves, or a
- * file on the platform that holds it. See lib/actions/admin-media for why.
+ * An asset is still an *address* — a path this site serves, a file on the
+ * platform that holds it, or a file in the blob store. What changed is that
+ * the address can now be arrived at by choosing a file rather than only by
+ * typing: `UploadField` puts the uploaded file's address into the same input
+ * that was always there, so the action behind this form is unchanged. See
+ * lib/uploads for why the upload does not pass through the server.
  */
 
 export type AssetRow = {
@@ -51,11 +56,14 @@ export function MediaAssetManager({
   kind,
   assets,
   canDelete,
+  uploadsEnabled,
 }: {
   collectionId: string
   kind: string
   assets: AssetRow[]
   canDelete: boolean
+  /** Whether a blob store is attached — see lib/uploads. Decided on the server. */
+  uploadsEnabled: boolean
 }) {
   return (
     <div className="space-y-6">
@@ -68,6 +76,7 @@ export function MediaAssetManager({
                 kind={kind}
                 asset={asset}
                 canDelete={canDelete}
+                uploadsEnabled={uploadsEnabled}
               />
             </li>
           ))}
@@ -78,10 +87,29 @@ export function MediaAssetManager({
         <p className="mb-4 font-display text-base font-semibold text-ink-950">
           Add a file
         </p>
-        <NewAsset collectionId={collectionId} kind={kind} />
+        <NewAsset
+          collectionId={collectionId}
+          kind={kind}
+          uploadsEnabled={uploadsEnabled}
+        />
       </div>
     </div>
   )
+}
+
+/**
+ * Which upload allow-list a collection's files are checked against.
+ *
+ * The collection's kind already decides what its files are, so the upload
+ * limits follow it rather than being a second choice for the editor to get
+ * wrong — a gallery accepts images, a recordings collection accepts films.
+ * `DOCUMENT` is the fallback for anything unmapped, because its list is the
+ * one that admits the widest range of ordinary office files.
+ */
+const UPLOAD_KIND_FOR: Record<string, UploadKindName> = {
+  [MediaKind.GALLERY]: 'image',
+  [MediaKind.VIDEO]: 'video',
+  [MediaKind.DOWNLOAD]: 'document',
 }
 
 /**
@@ -96,10 +124,12 @@ function AssetFields({
   kind,
   defaults,
   errors,
+  uploadsEnabled,
 }: {
   kind: string
   defaults?: Partial<AssetRow>
   errors?: Record<string, string>
+  uploadsEnabled: boolean
 }) {
   return (
     <div className="space-y-5">
@@ -114,8 +144,10 @@ function AssetFields({
         error={errors?.url}
         required
       >
-        <Input
+        <UploadField
           name="url"
+          kind={UPLOAD_KIND_FOR[kind] ?? 'document'}
+          enabled={uploadsEnabled}
           defaultValue={defaults?.url ?? ''}
           placeholder="/brand/hero/one.jpg"
           required
@@ -159,8 +191,10 @@ function AssetFields({
           hint="The still shown before the film is played. Without one the first frame is used, which is often black."
           error={errors?.thumbnailUrl}
         >
-          <Input
+          <UploadField
             name="thumbnailUrl"
+            kind="image"
+            enabled={uploadsEnabled}
             defaultValue={defaults?.thumbnailUrl ?? ''}
             placeholder="/brand/video/highlights-poster.jpg"
             error={errors?.thumbnailUrl}
@@ -215,9 +249,11 @@ function AssetFields({
 function NewAsset({
   collectionId,
   kind,
+  uploadsEnabled,
 }: {
   collectionId: string
   kind: string
+  uploadsEnabled: boolean
 }) {
   const [state, formAction] = useActionState(saveAsset, idleState)
 
@@ -244,7 +280,7 @@ function NewAsset({
         <FormMessage status="error">{state.message}</FormMessage>
       )}
 
-      <AssetFields kind={kind} errors={errors} />
+      <AssetFields kind={kind} errors={errors} uploadsEnabled={uploadsEnabled} />
 
       <SubmitButton variant="outline" size="sm" pendingLabel="Adding…">
         Add file
@@ -258,11 +294,13 @@ function ExistingAsset({
   kind,
   asset,
   canDelete,
+  uploadsEnabled,
 }: {
   collectionId: string
   kind: string
   asset: AssetRow
   canDelete: boolean
+  uploadsEnabled: boolean
 }) {
   const [saveState, saveAction] = useActionState(saveAsset, idleState)
   const [deleteState, deleteAction] = useActionState(deleteAsset, idleState)
@@ -339,7 +377,12 @@ function ExistingAsset({
           <input type="hidden" name="collectionId" value={collectionId} />
           <input type="hidden" name="assetId" value={asset.id} />
 
-          <AssetFields kind={kind} defaults={asset} errors={errors} />
+          <AssetFields
+            kind={kind}
+            defaults={asset}
+            errors={errors}
+            uploadsEnabled={uploadsEnabled}
+          />
 
           <SubmitButton variant="outline" size="sm" pendingLabel="Saving…">
             Save

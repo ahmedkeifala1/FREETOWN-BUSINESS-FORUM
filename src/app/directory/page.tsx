@@ -18,6 +18,7 @@ import { cn } from '@/lib/cn'
 import { db } from '@/lib/db'
 import { BUSINESS_SIZE_LABELS, SL_REGIONS, type BusinessSize } from '@/lib/enums'
 import { initials, truncate } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Business / member directory (SDR §4.11, FR-10).
@@ -58,7 +59,10 @@ export default async function DirectoryPage({
 }: {
   searchParams: Promise<Search>
 }) {
-  const params = await searchParams
+  const [params, copy] = await Promise.all([
+    searchParams,
+    getPageCopy('directory'),
+  ])
 
   const query = (params.q ?? '').trim()
   const needle = query.toLowerCase()
@@ -124,10 +128,13 @@ export default async function DirectoryPage({
       />
 
       <PageHero
-        eyebrow="Membership"
-        title="The business"
-        accent="directory"
-        lead="Every FBF member is listed here. It is where a buyer, a partner or an investor looks first when they want to find a Sierra Leonean business by what it actually does."
+        eyebrow={copy('eyebrow', 'Membership')}
+        title={copy('heroTitle', 'The business')}
+        accent={copy('heroAccent', 'directory')}
+        lead={copy(
+          'heroLead',
+          'Every FBF member is listed here. It is where a buyer, a partner or an investor looks first when they want to find a Sierra Leonean business by what it actually does.',
+        )}
       >
         <ButtonLink
           href="/membership/apply"
@@ -268,8 +275,11 @@ export default async function DirectoryPage({
         {visible.length === 0 ? (
           <div className="mt-8">
             <EmptyState
-              title="No businesses match that"
-              message="Try a broader sector, or clear the filters. Not every member has published a listing yet."
+              title={copy('emptyTitle', 'No businesses match that')}
+              message={copy(
+                'emptyMessage',
+                'Try a broader sector, or clear the filters. Not every member has published a listing yet.',
+              )}
             >
               <Link
                 href="/directory"
@@ -340,8 +350,11 @@ export default async function DirectoryPage({
       </Section>
 
       <CtaBand
-        title="Not listed yet?"
-        lead="A directory listing comes with every membership tier, from the first one. It takes about ten minutes to fill in."
+        title={copy('ctaTitle', 'Not listed yet?')}
+        lead={copy(
+          'ctaLead',
+          'A directory listing comes with every membership tier, from the first one. It takes about ten minutes to fill in.',
+        )}
       >
         <ButtonLink
           href="/membership/apply"

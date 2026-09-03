@@ -17,7 +17,7 @@ import {
 import { db } from '@/lib/db'
 import { MediaKind } from '@/lib/enums'
 import { pluralise, truncate } from '@/lib/format'
-import { getSectors } from '@/lib/settings'
+import { getPageCopy, getSectors } from '@/lib/settings'
 
 /**
  * Learning Hub — laid out like the reference site's
@@ -59,6 +59,7 @@ export default async function LearningHubPage() {
     speakers,
     videoThumbnails,
     galleryPhotos,
+    copy,
   ] = await Promise.all([
     getSectors(),
     db.mediaCollection.findMany({
@@ -113,6 +114,7 @@ export default async function LearningHubPage() {
       take: 12,
       select: { id: true, url: true },
     }),
+    getPageCopy('learning-hub'),
   ])
 
   const tiles: MosaicTile[] = [
@@ -165,18 +167,16 @@ export default async function LearningHubPage() {
       <Section tone="white" size="wide">
         <div className="max-w-3xl">
           <SectionHeading
-            eyebrow="Membership"
-            title="About our memberships"
+            eyebrow={copy('membershipEyebrow', 'Membership')}
+            title={copy('membershipTitle', 'About our memberships')}
             className="mb-0"
           />
 
           <p className="mt-6 text-base leading-relaxed text-ink-700 sm:text-lg">
-            Membership gives your company access to the forum&rsquo;s whole
-            programme — the bi-annual events, the Deal Room, a listing in the
-            national business directory, and the Learning Hub in full. Whether
-            it is your leadership team weighing an expansion or your younger
-            managers learning how capital is actually raised here, the material
-            is what the room itself works from.
+            {copy(
+              'membershipBody',
+              'Membership gives your company access to the forum’s whole programme — the bi-annual events, the Deal Room, a listing in the national business directory, and the Learning Hub in full. Whether it is your leadership team weighing an expansion or your younger managers learning how capital is actually raised here, the material is what the room itself works from.',
+            )}
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -189,8 +189,8 @@ export default async function LearningHubPage() {
 
       <Section tone="muted" size="wide">
         <SectionHeading
-          eyebrow="What’s inside"
-          title="The Learning Hub, library by library"
+          eyebrow={copy('librariesEyebrow', 'What’s inside')}
+          title={copy('librariesTitle', 'The Learning Hub, library by library')}
           lead={
             topics.length > 0
               ? `Recordings, reports and guides across the sectors the forum works on: ${sentence(topics)}.`
@@ -272,16 +272,19 @@ export default async function LearningHubPage() {
         <Section tone="white" size="wide">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
-              eyebrow="Sector guides"
-              title="The investment case, sector by sector"
-              lead="What the data says, which incentives apply, and who is already operating."
+              eyebrow={copy('sectorsEyebrow', 'Sector guides')}
+              title={copy('sectorsTitle', 'The investment case, sector by sector')}
+              lead={copy(
+                'sectorsLead',
+                'What the data says, which incentives apply, and who is already operating.',
+              )}
               className="mb-0"
             />
             <Link
               href="/learning-hub/sectors"
               className="inline-flex items-center gap-1.5 font-medium text-forest-700 hover:underline"
             >
-              All sectors
+              {copy('sectorsLinkLabel', 'All sectors')}
               <Icon name="arrowRight" className="size-4" />
             </Link>
           </div>
@@ -311,16 +314,22 @@ export default async function LearningHubPage() {
 
       <SpeakerWall
         speakers={speakers}
-        eyebrow="Speakers"
-        title="Meet the speakers"
-        lead="The ministers, investors, founders and development partners whose sessions fill the hub."
-        linkLabel="View all speakers"
+        eyebrow={copy('speakersEyebrow', 'Speakers')}
+        title={copy('speakersTitle', 'Meet the speakers')}
+        lead={copy(
+          'speakersLead',
+          'The ministers, investors, founders and development partners whose sessions fill the hub.',
+        )}
+        linkLabel={copy('speakersLinkLabel', 'View all speakers')}
         tone="muted"
       />
 
       <CtaBand
-        title="Members get more of this"
-        lead="Full sector datasets, the Deal Room, and session recordings released to members first."
+        title={copy('ctaTitle', 'Members get more of this')}
+        lead={copy(
+          'ctaLead',
+          'Full sector datasets, the Deal Room, and session recordings released to members first.',
+        )}
       >
         <ButtonLink
           href="/membership"

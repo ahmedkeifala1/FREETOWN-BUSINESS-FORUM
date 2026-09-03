@@ -20,15 +20,25 @@ import {
   truncate,
 } from '@/lib/format'
 import { formatMoney } from '@/lib/money'
-import { getCurrentEvent, getSectors, getSettings, setting } from '@/lib/settings'
+import {
+  getCurrentEvent,
+  getPageCopy,
+  getSectors,
+  getSettings,
+  setting,
+  type PageCopy,
+} from '@/lib/settings'
 
 /**
  * Homepage (SDR §4.2).
  *
  * Every band on this page is read from the database — the hero, the sector
- * grid, the Deal Room and membership teasers and the news cards (FR-01).
- * Nothing here is hard-coded copy except the section headings, which are
- * structural rather than editorial.
+ * grid, the Deal Room and membership teasers and the news cards (FR-01) — and
+ * since the page editor gained the `home` entry, so is the wording around
+ * them. The section headings below are still written in this file, but as
+ * *fallbacks*: `copy(key, fallback)` prefers what the secretariat has written
+ * and uses the line here when they have written nothing. See `getPageCopy`
+ * for why the words stay in the source rather than moving to a seed.
  *
  * The layout follows the reference the secretariat gave us
  * (londonbusinessforum.com): a statement hero with a cycling phrase, then the
@@ -64,10 +74,11 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-  const [settings, event, sectors] = await Promise.all([
+  const [settings, event, sectors, copy] = await Promise.all([
     getSettings(),
     getCurrentEvent(),
     getSectors(),
+    getPageCopy('home'),
   ])
 
   const [
@@ -141,11 +152,11 @@ export default async function HomePage() {
         event={event}
         tiles={buildMosaic(galleryPhotos, videos)}
       />
-      <Sectors sectors={sectors} />
-      <DealRoomTeaser opportunities={opportunities} />
-      <MembershipTeaser tiers={tiers} />
-      <LatestNews articles={articles} />
-      <NewsletterBand settings={settings} />
+      <Sectors sectors={sectors} copy={copy} />
+      <DealRoomTeaser opportunities={opportunities} copy={copy} />
+      <MembershipTeaser tiers={tiers} copy={copy} />
+      <LatestNews articles={articles} copy={copy} />
+      <NewsletterBand settings={settings} copy={copy} />
     </>
   )
 }
@@ -333,6 +344,7 @@ const HERO_CYCLE: Array<{ icon: IconName; accent: string }> = [
 
 function Sectors({
   sectors,
+  copy,
 }: {
   sectors: Array<{
     id: string
@@ -341,15 +353,19 @@ function Sectors({
     summary: string
     iconKey: string
   }>
+  copy: PageCopy
 }) {
   if (sectors.length === 0) return null
 
   return (
     <Section tone="white" size="wide">
       <SectionHeading
-        eyebrow="Opportunities"
-        title="Eight sectors, one investment case"
-        lead="Each sector page sets out the data, the incentives on offer, and the live opportunities seeking capital."
+        eyebrow={copy('sectorsEyebrow', 'Opportunities')}
+        title={copy('sectorsTitle', 'Eight sectors, one investment case')}
+        lead={copy(
+          'sectorsLead',
+          'Each sector page sets out the data, the incentives on offer, and the live opportunities seeking capital.',
+        )}
       />
 
       <CardGrid columns={4} className="mt-10">
@@ -375,7 +391,9 @@ function Sectors({
 
 function DealRoomTeaser({
   opportunities,
+  copy,
 }: {
+  copy: PageCopy
   opportunities: Array<{
     id: string
     slug: string
@@ -393,22 +411,25 @@ function DealRoomTeaser({
       <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
         <div className="lg:col-span-5">
           <SectionHeading
-            eyebrow="Deal Room"
-            title="Capital and businesses, in the same room"
-            lead="Businesses submit propositions; investors request access. The secretariat matches both sides and schedules the meetings in advance, so the second day of the forum is spent talking rather than looking."
+            eyebrow={copy('dealRoomEyebrow', 'Deal Room')}
+            title={copy('dealRoomTitle', 'Capital and businesses, in the same room')}
+            lead={copy(
+              'dealRoomLead',
+              'Businesses submit propositions; investors request access. The secretariat matches both sides and schedules the meetings in advance, so the second day of the forum is spent talking rather than looking.',
+            )}
             inverted
           />
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <ButtonLink href="/deal-room/apply" variant="accent" size="md">
-              Apply for funding
+              {copy('dealRoomApplyLabel', 'Apply for funding')}
             </ButtonLink>
             <ButtonLink
               href="/deal-room"
               size="md"
               className="border border-white/30 bg-white/10 text-white hover:bg-white/20"
             >
-              Browse opportunities
+              {copy('dealRoomBrowseLabel', 'Browse opportunities')}
             </ButtonLink>
           </div>
         </div>
@@ -473,7 +494,9 @@ function DealRoomTeaser({
 
 function MembershipTeaser({
   tiers,
+  copy,
 }: {
+  copy: PageCopy
   tiers: Array<{
     id: string
     slug: string
@@ -502,9 +525,12 @@ function MembershipTeaser({
   return (
     <Section tone="muted" size="wide">
       <SectionHeading
-        eyebrow="Membership"
-        title="Join FBF"
-        lead="Membership carries a directory listing, member rates on forum registration, access to the Deal Room, and a standing seat in the dialogue with government."
+        eyebrow={copy('membershipEyebrow', 'Membership')}
+        title={copy('membershipTitle', 'Join FBF')}
+        lead={copy(
+          'membershipLead',
+          'Membership carries a directory listing, member rates on forum registration, access to the Deal Room, and a standing seat in the dialogue with government.',
+        )}
         align="center"
       />
 
@@ -517,7 +543,9 @@ function MembershipTeaser({
 
 function LatestNews({
   articles,
+  copy,
 }: {
+  copy: PageCopy
   articles: Array<{
     id: string
     slug: string
@@ -533,12 +561,16 @@ function LatestNews({
   return (
     <Section tone="white" size="wide">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <SectionHeading eyebrow="News" title="Latest from the forum" className="mb-0" />
+        <SectionHeading
+          eyebrow={copy('newsEyebrow', 'News')}
+          title={copy('newsTitle', 'Latest from the forum')}
+          className="mb-0"
+        />
         <Link
           href="/blog"
           className="inline-flex items-center gap-1.5 font-medium text-forest-700 hover:text-forest-800 hover:underline"
         >
-          All news &amp; insights
+          {copy('newsLinkLabel', 'All news & insights')}
           <Icon name="arrowRight" className="size-4" />
         </Link>
       </div>
@@ -600,12 +632,18 @@ function LatestNews({
 
 // ── 6. Newsletter ──────────────────────────────────────────────────────────
 
-function NewsletterBand({ settings }: { settings: Record<string, string> }) {
+function NewsletterBand({
+  settings,
+  copy,
+}: {
+  settings: Record<string, string>
+  copy: PageCopy
+}) {
   return (
     <Section tone="forest">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-2xl text-white sm:text-3xl">
-          Get the monthly briefing
+          {copy('newsletterTitle', 'Get the monthly briefing')}
         </h2>
         <p className="mt-3 text-white/80">
           {setting(

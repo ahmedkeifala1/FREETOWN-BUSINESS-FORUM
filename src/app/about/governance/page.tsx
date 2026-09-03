@@ -78,17 +78,23 @@ export default async function GovernancePage() {
       />
 
       <PageHero
-        eyebrow="About"
-        title="How the forum is"
-        accent="governed"
-        lead="FBF is a non-profit. It is accountable to its members for what it does with their subscriptions, and to its partners for what it does with their support."
+        eyebrow={governanceBlocks.eyebrow ?? 'About'}
+        title={governanceBlocks.heroTitle ?? 'How the forum is'}
+        accent={governanceBlocks.heroAccent ?? 'governed'}
+        lead={
+          governanceBlocks.heroLead ??
+          'FBF is a non-profit. It is accountable to its members for what it does with their subscriptions, and to its partners for what it does with their support.'
+        }
       />
 
       {intro && (
         <Section tone="white" size="wide">
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-5">
-              <SectionHeading eyebrow="In short" title="Who leads the forum" />
+              <SectionHeading
+                eyebrow={governanceBlocks.summaryEyebrow ?? 'In short'}
+                title={governanceBlocks.summaryTitle ?? 'Who leads the forum'}
+              />
             </div>
 
             <div className="space-y-4 text-lg leading-relaxed text-ink-800 lg:col-span-7">
@@ -103,9 +109,12 @@ export default async function GovernancePage() {
       {profiles.length > 0 && (
         <Section tone="muted" size="wide">
           <SectionHeading
-            eyebrow="Accountable officers"
-            title="The board and officers"
-            lead="Each officer below is accountable to the membership for the part of the forum named against their role."
+            eyebrow={governanceBlocks.officersEyebrow ?? 'Accountable officers'}
+            title={governanceBlocks.officersTitle ?? 'The board and officers'}
+            lead={
+              governanceBlocks.officersLead ??
+              'Each officer below is accountable to the membership for the part of the forum named against their role.'
+            }
           />
 
           <CardGrid columns={3} className="mt-10">
@@ -202,9 +211,12 @@ export default async function GovernancePage() {
       */}
       <Section tone="muted">
         <SectionHeading
-          eyebrow="On request"
-          title="Governance documents"
-          lead="Not published on the site. The secretariat sends any of these by email on request, including to partners carrying out due diligence."
+          eyebrow={governanceBlocks.documentsEyebrow ?? 'On request'}
+          title={governanceBlocks.documentsTitle ?? 'Governance documents'}
+          lead={
+            governanceBlocks.documentsLead ??
+            'Not published on the site. The secretariat sends any of these by email on request, including to partners carrying out due diligence.'
+          }
         />
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -227,12 +239,14 @@ export default async function GovernancePage() {
       </Section>
 
       <CtaBand
-        title="Questions about how we are run?"
-        lead="The secretariat answers governance enquiries directly."
+        title={governanceBlocks.ctaTitle ?? 'Questions about how we are run?'}
+        lead={
+          governanceBlocks.ctaLead ?? 'The secretariat answers governance enquiries directly.'
+        }
         tone="harbour"
       >
         <ButtonLink href="/contact" variant="accent" size="lg">
-          Contact the secretariat
+          {governanceBlocks.ctaLinkLabel ?? 'Contact the secretariat'}
         </ButtonLink>
         <ButtonLink
           href="/about/partners"

@@ -121,9 +121,9 @@ export default async function SponsorsPage() {
       />
 
       <PageHero
-        eyebrow="Events"
-        title="Sponsors &"
-        accent="exhibitors"
+        eyebrow={blocks.eyebrow ?? 'Events'}
+        title={blocks.heroTitle ?? 'Sponsors &'}
+        accent={blocks.heroAccent ?? 'exhibitors'}
         lead={
           blocks.heroLead ??
           'The forum is delivered with the backing of organisations that want Sierra Leonean business to be met on its own terms. Here is who they are, and how to join them.'
@@ -153,11 +153,17 @@ export default async function SponsorsPage() {
       {sponsors.length === 0 ? (
         <Section tone="white">
           <EmptyState
-            title="Sponsors for this edition are being confirmed"
-            message="Packages are open. Talk to the secretariat about where your organisation fits."
+            title={
+              blocks.emptyTitle ??
+              'Sponsors for this edition are being confirmed'
+            }
+            message={
+              blocks.emptyMessage ??
+              'Packages are open. Talk to the secretariat about where your organisation fits.'
+            }
           >
             <ButtonLink href="#become-a-sponsor" variant="primary">
-              Enquire about sponsorship
+              {blocks.emptyLinkLabel ?? 'Enquire about sponsorship'}
             </ButtonLink>
           </EmptyState>
         </Section>
@@ -234,8 +240,8 @@ export default async function SponsorsPage() {
 
       <Section tone="forest" size="wide">
         <SectionHeading
-          eyebrow="Why sponsor"
-          title="What sponsorship actually buys"
+          eyebrow={blocks.whyEyebrow ?? 'Why sponsor'}
+          title={blocks.whyTitle ?? 'What sponsorship actually buys'}
           lead={
             blocks.why ??
             'Not a logo on a banner. Sponsorship puts your organisation in front of the people who decide where capital and contracts go in Sierra Leone, in a room they have travelled to be in.'
@@ -271,9 +277,12 @@ export default async function SponsorsPage() {
 
       <Section tone="white" size="wide">
         <SectionHeading
-          eyebrow="Packages"
-          title="What each tier includes"
-          lead="A summary. The prospectus carries the full specification, the prices and the terms — and it is the document that governs."
+          eyebrow={blocks.packagesEyebrow ?? 'Packages'}
+          title={blocks.packagesTitle ?? 'What each tier includes'}
+          lead={
+            blocks.packagesLead ??
+            'A summary. The prospectus carries the full specification, the prices and the terms — and it is the document that governs.'
+          }
         />
 
         {/*
@@ -348,7 +357,10 @@ export default async function SponsorsPage() {
       <Section tone="muted" size="wide">
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
-            <SectionHeading eyebrow="Exhibiting" title="Take a stand" />
+            <SectionHeading
+              eyebrow={blocks.exhibitingEyebrow ?? 'Exhibiting'}
+              title={blocks.exhibitingTitle ?? 'Take a stand'}
+            />
           </div>
 
           <div className="space-y-4 leading-relaxed text-ink-700 lg:col-span-7">
@@ -386,9 +398,12 @@ export default async function SponsorsPage() {
       <Section tone="white" id="become-a-sponsor" className="scroll-mt-24">
         <Container size="narrow" className="px-0">
           <SectionHeading
-            eyebrow="Get in touch"
-            title="Become a sponsor"
-            lead="Tell us what you want out of the forum and the secretariat will come back with the package that fits — usually within two working days."
+            eyebrow={blocks.enquiryEyebrow ?? 'Get in touch'}
+            title={blocks.enquiryTitle ?? 'Become a sponsor'}
+            lead={
+              blocks.enquiryLead ??
+              'Tell us what you want out of the forum and the secretariat will come back with the package that fits — usually within two working days.'
+            }
           />
 
           <div className="mt-10">

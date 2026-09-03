@@ -20,6 +20,7 @@ import {
   type OpportunityStage,
 } from '@/lib/enums'
 import { paragraphs, parseJsonColumn, truncate } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * A sector guide (SDR §4.12 "sector pages — overview, data, incentives and
@@ -66,7 +67,7 @@ export default async function SectorPage({
 
   if (!sector) notFound()
 
-  const [opportunities, listings, speakers] = await Promise.all([
+  const [opportunities, listings, speakers, copy] = await Promise.all([
     db.opportunity.findMany({
       where: { sectorId: sector.id, isPublished: true },
       orderBy: { publishedAt: 'desc' },
@@ -105,6 +106,8 @@ export default async function SectorPage({
         organisation: true,
       },
     }),
+    // The guide shares the Learning Hub's copy — one section, one entry.
+    getPageCopy('learning-hub'),
   ])
 
   const stats = parseJsonColumn<SectorStat[]>(sector.dataJson, [])
@@ -120,7 +123,11 @@ export default async function SectorPage({
         ]}
       />
 
-      <PageHero eyebrow="Sector guide" title={sector.name} lead={sector.summary} />
+      <PageHero
+        eyebrow={copy('guideEyebrow', 'Sector guide')}
+        title={sector.name}
+        lead={sector.summary}
+      />
 
       {stats.length > 0 && (
         <Section tone="muted" size="wide" className="py-10 sm:py-12">
@@ -141,7 +148,10 @@ export default async function SectorPage({
         <Section tone="white" size="wide">
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-4">
-              <SectionHeading eyebrow="The case" title="Why this sector" />
+              <SectionHeading
+                eyebrow={copy('guideCaseEyebrow', 'The case')}
+                title={copy('guideCaseTitle', 'Why this sector')}
+              />
             </div>
 
             <div className="space-y-4 text-lg leading-relaxed text-ink-800 lg:col-span-8">
@@ -158,8 +168,8 @@ export default async function SectorPage({
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-4">
               <SectionHeading
-                eyebrow="What is on offer"
-                title="Incentives"
+                eyebrow={copy('guideIncentivesEyebrow', 'What is on offer')}
+                title={copy('guideIncentivesTitle', 'Incentives')}
                 inverted
               />
             </div>
@@ -191,7 +201,7 @@ export default async function SectorPage({
         <Section tone="white" size="wide">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
-              eyebrow="Deal Room"
+              eyebrow={copy('guideDealRoomEyebrow', 'Deal Room')}
               title={`${sector.name} propositions`}
               className="mb-0"
             />
@@ -244,7 +254,7 @@ export default async function SectorPage({
         <Section tone="muted" size="wide">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
-              eyebrow="In the directory"
+              eyebrow={copy('guideDirectoryEyebrow', 'In the directory')}
               title={`${sector.name} members`}
               className="mb-0"
             />
@@ -282,7 +292,7 @@ export default async function SectorPage({
         <Section tone="white">
           <Container size="narrow" className="px-0">
             <SectionHeading
-              eyebrow="At the forum"
+              eyebrow={copy('guideSpeakersEyebrow', 'At the forum')}
               title={`Speaking on ${sector.name.toLowerCase()}`}
             />
 
@@ -315,7 +325,10 @@ export default async function SectorPage({
 
       <CtaBand
         title={`Building something in ${sector.name.toLowerCase()}?`}
-        lead="Submit a proposition to the Deal Room, or join the forum and get listed where investors are already looking."
+        lead={copy(
+          'guideCtaLead',
+          'Submit a proposition to the Deal Room, or join the forum and get listed where investors are already looking.',
+        )}
       >
         <ButtonLink
           href="/deal-room/apply"

@@ -154,8 +154,28 @@ export async function savePage(
   for (const block of page.blocks) {
     const raw = String(formData.get(blockField(block.key)) ?? '')
 
-    if (block.kind === 'prose') {
+    // Prose, single lines and image addresses are all one trimmed string on the
+    // way in; what separates them is the control the editor shows and the
+    // length the route expects, neither of which is this loop's business.
+    if (
+      block.kind === 'prose' ||
+      block.kind === 'line' ||
+      block.kind === 'image'
+    ) {
       const trimmed = raw.trim()
+
+      // A heading pasted as a paragraph would set a wall of text at display
+      // size. The cap is generous — it is a guard against a paste, not a style
+      // rule — and the message says what to do rather than only what is wrong.
+      if (block.kind === 'line') {
+        const max = block.max ?? 200
+        if (trimmed.length > max) {
+          blockErrors[blockField(block.key)] =
+            `That is one line on the page — keep it under ${max} characters.`
+          continue
+        }
+      }
+
       // An empty block is omitted rather than stored as "". The routes test
       // for the key's presence to decide whether to render the section at all,
       // so an empty string would print a heading over nothing.

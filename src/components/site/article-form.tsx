@@ -12,6 +12,7 @@ import {
   SubmitButton,
   Textarea,
 } from '@/components/ui/form'
+import { UploadField } from '@/components/ui/upload'
 import { saveArticle } from '@/lib/actions/admin-articles'
 import { idleState } from '@/lib/actions/types'
 import { ContentStatus } from '@/lib/enums'
@@ -50,10 +51,13 @@ export function ArticleForm({
   defaults,
   categories,
   canPublish,
+  uploadsEnabled,
 }: {
   defaults: ArticleDefaults | null
   categories: { id: string; name: string }[]
   canPublish: boolean
+  /** Whether a blob store is attached — see lib/uploads. Decided on the server. */
+  uploadsEnabled: boolean
 }) {
   const [state, formAction] = useActionState(saveArticle, idleState)
 
@@ -159,13 +163,14 @@ export function ArticleForm({
           </Field>
 
           <Field
-            label="Hero image URL"
+            label="Hero image"
             name="heroImageUrl"
             error={errors?.heroImageUrl}
           >
-            <Input
+            <UploadField
               name="heroImageUrl"
-              type="url"
+              kind="image"
+              enabled={uploadsEnabled}
               placeholder="https://"
               defaultValue={defaults?.heroImageUrl ?? ''}
               error={errors?.heroImageUrl}

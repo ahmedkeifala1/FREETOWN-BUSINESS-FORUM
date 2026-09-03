@@ -10,6 +10,7 @@ import { db } from '@/lib/db'
 import { MEDIA_KIND_LABELS, MediaKind } from '@/lib/enums'
 import { fileKindLabel, formatBytes } from '@/lib/format'
 import { Permission, requirePermission, userHas } from '@/lib/rbac'
+import { uploadsEnabled } from '@/lib/uploads'
 
 /**
  * One collection and the files in it (§4.14).
@@ -40,6 +41,11 @@ export default async function AdminMediaCollectionPage({
     redirectTo: '/admin',
   })
   const canDelete = userHas(staff, Permission.CONTENT_DELETE)
+
+  // Asked here rather than in the browser: the token is what the store checks,
+  // and a tab left open through a deployment that removed the store would
+  // otherwise still offer the button.
+  const canUpload = uploadsEnabled()
 
   const { id } = await params
   const isNew = id === 'new'
@@ -119,6 +125,7 @@ export default async function AdminMediaCollectionPage({
       <Card>
         <MediaCollectionForm
           canDelete={canDelete}
+          uploadsEnabled={canUpload}
           defaults={
             collection
               ? {
@@ -153,6 +160,7 @@ export default async function AdminMediaCollectionPage({
               collectionId={collection.id}
               kind={collection.kind}
               canDelete={canDelete}
+              uploadsEnabled={canUpload}
               assets={collection.assets.map((asset) => ({
                 id: asset.id,
                 url: asset.url,

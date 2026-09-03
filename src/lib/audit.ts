@@ -50,6 +50,11 @@ export const AuditAction = {
   // to show what used to be there, so it is recorded separately.
   MEDIA_UPDATE: 'media.update',
   MEDIA_DELETE: 'media.delete',
+  // A file arriving in the blob store. Recorded separately from media.update
+  // because an upload and the row that points at it are two different events:
+  // a file can be uploaded and then never attached to anything, and that is
+  // exactly the case where knowing who put it there is worth having.
+  MEDIA_UPLOAD: 'media.upload',
   USER_ROLE_CHANGE: 'user.role-change',
   SETTINGS_UPDATE: 'settings.update',
 } as const

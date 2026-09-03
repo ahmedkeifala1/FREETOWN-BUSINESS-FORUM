@@ -23,6 +23,7 @@ import {
 } from '@/lib/enums'
 import { truncate } from '@/lib/format'
 import { formatMoney, isCurrency } from '@/lib/money'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Invest & Do Business — the Deal Room (SDR §4.12, FR-15).
@@ -79,7 +80,8 @@ export default async function DealRoomPage({
   const region = SL_REGIONS.find((r) => r === params.region)
   const stage = STAGES.find((s) => s === params.stage)
 
-  const [matches, totalCount] = await Promise.all([
+  const [copy, matches, totalCount] = await Promise.all([
+    getPageCopy('deal-room'),
     db.opportunity.findMany({
       where: {
         isPublished: true,
@@ -144,10 +146,13 @@ export default async function DealRoomPage({
       />
 
       <PageHero
-        eyebrow="Invest & do business"
-        title="The Deal"
-        accent="Room"
-        lead="Sierra Leonean businesses looking for capital, and the investors looking for them. Every proposition here has been through the secretariat before it was published."
+        eyebrow={copy('eyebrow', 'Invest & do business')}
+        title={copy('heroTitle', 'The Deal')}
+        accent={copy('heroAccent', 'Room')}
+        lead={copy(
+          'heroLead',
+          'Sierra Leonean businesses looking for capital, and the investors looking for them. Every proposition here has been through the secretariat before it was published.',
+        )}
       >
         <ButtonLink
           href="/deal-room/apply"
@@ -172,8 +177,8 @@ export default async function DealRoomPage({
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
             <SectionHeading
-              eyebrow="How it works"
-              title="Two doors into the same room"
+              eyebrow={copy('howEyebrow', 'How it works')}
+              title={copy('howTitle', 'Two doors into the same room')}
             />
 
             <dl className="mt-8 grid grid-cols-2 gap-6">
@@ -208,15 +213,27 @@ export default async function DealRoomPage({
           <div className="grid gap-6 sm:grid-cols-2 lg:col-span-7">
             <Door
               icon="trending"
-              title="You have a business"
-              body="Submit a proposition: what the business does, what it needs and what the money is for. The secretariat assesses it before anything is published, then lists it here for investors to find."
-              cta={{ label: 'Apply for funding', href: '/deal-room/apply' }}
+              title={copy('businessDoorTitle', 'You have a business')}
+              body={copy(
+                'businessDoorBody',
+                'Submit a proposition: what the business does, what it needs and what the money is for. The secretariat assesses it before anything is published, then lists it here for investors to find.',
+              )}
+              cta={{
+                label: copy('businessDoorLabel', 'Apply for funding'),
+                href: '/deal-room/apply',
+              }}
             />
             <Door
               icon="handshake"
-              title="You have capital"
-              body="Browse the propositions below. The summary, the sector and the ticket size are public; the full pack is released when the business behind it agrees to your request."
-              cta={{ label: 'Browse propositions', href: '#opportunities' }}
+              title={copy('investorDoorTitle', 'You have capital')}
+              body={copy(
+                'investorDoorBody',
+                'Browse the propositions below. The summary, the sector and the ticket size are public; the full pack is released when the business behind it agrees to your request.',
+              )}
+              cta={{
+                label: copy('investorDoorLabel', 'Browse propositions'),
+                href: '#opportunities',
+              }}
             />
           </div>
         </div>
@@ -407,8 +424,8 @@ export default async function DealRoomPage({
       <Section tone="muted">
         <Container size="narrow" className="px-0">
           <SectionHeading
-            eyebrow="Before you submit"
-            title="What is public and what is not"
+            eyebrow={copy('disclosureEyebrow', 'Before you submit')}
+            title={copy('disclosureTitle', 'What is public and what is not')}
           />
 
           <div className="mt-6 space-y-4 leading-relaxed text-ink-700">
@@ -432,8 +449,11 @@ export default async function DealRoomPage({
       </Section>
 
       <CtaBand
-        title="Looking for capital?"
-        lead="The application takes about twenty minutes and needs no account. You will get a reference number to quote."
+        title={copy('ctaTitle', 'Looking for capital?')}
+        lead={copy(
+          'ctaLead',
+          'The application takes about twenty minutes and needs no account. You will get a reference number to quote.',
+        )}
       >
         <ButtonLink
           href="/deal-room/apply"

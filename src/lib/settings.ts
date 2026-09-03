@@ -117,6 +117,39 @@ export const getPageBlocks = cache(
   },
 )
 
+/**
+ * One page's copy, as a reader that falls back to what the route already says.
+ *
+ * The pattern every public route now follows:
+ *
+ * ```ts
+ * const copy = await getPageCopy('home')
+ * <SectionHeading title={copy('sectorsTitle', 'Eight sectors, one investment case')} />
+ * ```
+ *
+ * The fallback stays in the source *on purpose*, and this is the decision the
+ * whole approach rests on. Moving the wording into a seed instead would mean a
+ * page whose row is missing, unpublished, or saved with that block left blank
+ * renders a hole where its heading was — and the person who caused it would see
+ * a broken page rather than an unchanged one. Written this way the database is
+ * an override: fill a block and the site changes, leave it and the site reads
+ * as it always has. There is no state in which a public page has no words.
+ *
+ * It also means these blocks can be declared for a page long before anyone
+ * writes them, which is how the sweep across the site was possible at all.
+ *
+ * `cache` is on `getPageBlocks` beneath, so a page reading twenty blocks makes
+ * one query, and a layout and a page reading the same slug make one between
+ * them.
+ */
+export type PageCopy = (key: string, fallback: string) => string
+
+export async function getPageCopy(slug: string): Promise<PageCopy> {
+  const blocks = await getPageBlocks(slug)
+
+  return (key: string, fallback: string) => blocks[key] || fallback
+}
+
 export const getPage = cache(async (slug: string) =>
   db.page.findFirst({ where: { slug, status: 'PUBLISHED' } }),
 )

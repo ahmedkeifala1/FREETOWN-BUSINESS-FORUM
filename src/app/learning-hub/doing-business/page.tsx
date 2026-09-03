@@ -80,9 +80,9 @@ export default async function DoingBusinessPage() {
       />
 
       <PageHero
-        eyebrow="Learning Hub"
-        title="Doing business in"
-        accent="Sierra Leone"
+        eyebrow={blocks.eyebrow ?? 'Learning Hub'}
+        title={blocks.heroTitle ?? 'Doing business in'}
+        accent={blocks.heroAccent ?? 'Sierra Leone'}
         lead={
           blocks.intro ??
           'What it takes to register, run and grow a business here — the practical version, written for people who are actually going to do it.'
@@ -178,9 +178,12 @@ export default async function DoingBusinessPage() {
       {sectors.length > 0 && (
         <Section tone="muted" size="wide">
           <SectionHeading
-            eyebrow="Go deeper"
-            title="Sector guides"
-            lead="What applies to everyone is above. What is specific to your sector — the incentives, the numbers and who is already there — is in these."
+            eyebrow={blocks.sectorsEyebrow ?? 'Go deeper'}
+            title={blocks.sectorsTitle ?? 'Sector guides'}
+            lead={
+              blocks.sectorsLead ??
+              'What applies to everyone is above. What is specific to your sector — the incentives, the numbers and who is already there — is in these.'
+            }
           />
 
           <CardGrid columns={4} className="mt-10">
@@ -223,8 +226,11 @@ export default async function DoingBusinessPage() {
       </Section>
 
       <CtaBand
-        title="Bring the question to the forum"
-        lead="The people who answer these questions — ministries, regulators, banks and the businesses that have been through it — are all in one room for three days."
+        title={blocks.ctaTitle ?? 'Bring the question to the forum'}
+        lead={
+          blocks.ctaLead ??
+          'The people who answer these questions — ministries, regulators, banks and the businesses that have been through it — are all in one room for three days.'
+        }
       >
         <ButtonLink
           href="/register"

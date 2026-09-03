@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/cn'
 import { db } from '@/lib/db'
 import { initials } from '@/lib/format'
-import { getCurrentEvent } from '@/lib/settings'
+import { getCurrentEvent, getPageCopy } from '@/lib/settings'
 
 /**
  * Speakers (SDR §4.6).
@@ -43,9 +43,10 @@ export default async function SpeakersPage({
 }: {
   searchParams: Promise<{ sector?: string; q?: string }>
 }) {
-  const [{ sector, q }, event] = await Promise.all([
+  const [{ sector, q }, event, copy] = await Promise.all([
     searchParams,
     getCurrentEvent(),
+    getPageCopy('speakers'),
   ])
 
   const query = (q ?? '').trim()
@@ -99,13 +100,16 @@ export default async function SpeakersPage({
       />
 
       <PageHero
-        eyebrow="Events"
-        title="Who is"
-        accent="speaking"
+        eyebrow={copy('eyebrow', 'Events')}
+        title={copy('heroTitle', 'Who is')}
+        accent={copy('heroAccent', 'speaking')}
         lead={
           event
-            ? `The people on the platform at ${event.name}. More are confirmed each month until the programme closes.`
-            : 'The people who take the platform at the forum.'
+            ? `${copy('heroLeadPrefix', 'The people on the platform at')} ${event.name}. ${copy('heroLeadSuffix', 'More are confirmed each month until the programme closes.')}`
+            : copy(
+                'heroLeadNoEvent',
+                'The people who take the platform at the forum.',
+              )
         }
       />
 
@@ -176,8 +180,11 @@ export default async function SpeakersPage({
         {visible.length === 0 ? (
           <div className="mt-8">
             <EmptyState
-              title="No speakers match that"
-              message="Try a surname, an organisation, or clear the filters to see everyone confirmed so far."
+              title={copy('emptyTitle', 'No speakers match that')}
+              message={copy(
+                'emptyMessage',
+                'Try a surname, an organisation, or clear the filters to see everyone confirmed so far.',
+              )}
             >
               <Link
                 href="/events/speakers"
@@ -223,12 +230,15 @@ export default async function SpeakersPage({
       </Section>
 
       <CtaBand
-        title="Want to speak at the forum?"
-        lead="The secretariat takes proposals for panels and roundtables until the programme closes."
+        title={copy('ctaTitle', 'Want to speak at the forum?')}
+        lead={copy(
+          'ctaLead',
+          'The secretariat takes proposals for panels and roundtables until the programme closes.',
+        )}
         tone="harbour"
       >
         <ButtonLink href="/contact" variant="accent" size="lg">
-          Propose a session
+          {copy('ctaProposeLabel', 'Propose a session')}
         </ButtonLink>
         <ButtonLink
           href="/events/agenda"

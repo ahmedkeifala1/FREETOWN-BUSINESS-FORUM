@@ -13,7 +13,7 @@ import {
 import { db } from '@/lib/db'
 import { MediaKind } from '@/lib/enums'
 import { fileKindLabel, formatBytes, formatDate } from '@/lib/format'
-import { getCurrentEvent } from '@/lib/settings'
+import { getCurrentEvent, getPageCopy } from '@/lib/settings'
 
 /**
  * Reports & downloads (SDR §4.14 "a downloads library (reports, brochures)").
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 }
 
 export default async function DownloadsPage() {
-  const [collections, event] = await Promise.all([
+  const [collections, event, copy] = await Promise.all([
     db.mediaCollection.findMany({
       where: { isPublished: true, kind: MediaKind.DOWNLOAD },
       orderBy: { sortOrder: 'asc' },
@@ -48,6 +48,7 @@ export default async function DownloadsPage() {
       },
     }),
     getCurrentEvent(),
+    getPageCopy('learning-hub'),
   ])
 
   const pinned = [
@@ -85,17 +86,23 @@ export default async function DownloadsPage() {
       />
 
       <PageHero
-        eyebrow="Learning Hub"
-        title="Reports &"
-        accent="downloads"
-        lead="Everything the forum publishes in a form you can keep — reports, brochures, prospectuses and the material behind the sessions."
+        eyebrow={copy('downloadsEyebrow', 'Learning Hub')}
+        title={copy('downloadsHeroTitle', 'Reports &')}
+        accent={copy('downloadsHeroAccent', 'downloads')}
+        lead={copy(
+          'downloadsHeroLead',
+          'Everything the forum publishes in a form you can keep — reports, brochures, prospectuses and the material behind the sessions.',
+        )}
       />
 
       {isEmpty ? (
         <Section tone="white">
           <EmptyState
-            title="Nothing published yet"
-            message="Reports and brochures are added here as they are released. The secretariat can send you anything that exists but has not been published."
+            title={copy('downloadsEmptyTitle', 'Nothing published yet')}
+            message={copy(
+              'downloadsEmptyMessage',
+              'Reports and brochures are added here as they are released. The secretariat can send you anything that exists but has not been published.',
+            )}
           >
             <ButtonLink href="/contact" variant="primary">
               Ask the secretariat
@@ -106,7 +113,10 @@ export default async function DownloadsPage() {
         <>
           {pinned.length > 0 && (
             <Section tone="white" size="wide">
-              <SectionHeading eyebrow="Start here" title="This year’s forum" />
+              <SectionHeading
+                eyebrow={copy('downloadsFeaturedEyebrow', 'Start here')}
+                title={copy('downloadsFeaturedTitle', 'This year’s forum')}
+              />
 
               <ul className="mt-8 divide-y divide-ink-200 border-y border-ink-200">
                 {pinned.map((item) => (
@@ -157,8 +167,14 @@ export default async function DownloadsPage() {
       )}
 
       <CtaBand
-        title="Looking for something that is not here?"
-        lead="Past programmes, delegate statistics, session notes — the secretariat holds a great deal that has never been published. Ask."
+        title={copy(
+          'downloadsCtaTitle',
+          'Looking for something that is not here?',
+        )}
+        lead={copy(
+          'downloadsCtaLead',
+          'Past programmes, delegate statistics, session notes — the secretariat holds a great deal that has never been published. Ask.',
+        )}
         tone="harbour"
       >
         <ButtonLink href="/contact" variant="accent" size="lg">

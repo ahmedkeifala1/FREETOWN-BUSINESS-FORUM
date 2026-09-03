@@ -13,6 +13,7 @@ import {
   Textarea,
 } from '@/components/ui/form'
 import { Icon } from '@/components/ui/icon'
+import { UploadField } from '@/components/ui/upload'
 import { savePage } from '@/lib/actions/admin-pages'
 import { idleState } from '@/lib/actions/types'
 import type { CmsBlock, CmsListField } from '@/lib/cms-pages'
@@ -45,6 +46,8 @@ export type PageFormDefaults = {
   metaTitle: string | null
   metaDescription: string | null
   status: string
+  /** True when no row exists yet — this save will create the page. */
+  isNew: boolean
   /** Raw block values as stored; `list` blocks arrive as their JSON string. */
   blocks: Record<string, string>
 }
@@ -54,11 +57,14 @@ export function PageForm({
   blocks,
   defaults,
   canPublish,
+  uploadsEnabled,
 }: {
   slug: string
   blocks: CmsBlock[]
   defaults: PageFormDefaults
   canPublish: boolean
+  /** Whether a blob store is attached — see lib/uploads. Decided on the server. */
+  uploadsEnabled: boolean
 }) {
   const [state, formAction] = useActionState(savePage, idleState)
 
@@ -76,6 +82,23 @@ export function PageForm({
 
       {state.status === 'error' && state.message && !errors && (
         <FormMessage status="error">{state.message}</FormMessage>
+      )}
+
+      {/*
+        Shown until this page has a row of its own. Every section on it is
+        blank, and every blank section keeps the wording already on the site —
+        so the thing worth saying is not "this is empty" but "what you write
+        here replaces what is there now".
+      */}
+      {defaults.isNew && (
+        <FormMessage status="info">
+          Nobody has edited this page yet, so every section below is blank and
+          the site is showing the wording built into it. Fill in only the
+          sections you want to change
+          {canPublish
+            ? ', leave the rest blank, and save with the status set to Published.'
+            : '. Your role can save a draft; an editor with publishing rights puts it live.'}
+        </FormMessage>
       )}
 
       <fieldset className="space-y-5">
@@ -104,23 +127,30 @@ export function PageForm({
           paragraphs with a blank line.
         </p>
 
-        {blocks.map((block) =>
-          block.kind === 'prose' ? (
-            <ProseBlock
-              key={block.key}
-              block={block}
-              defaultValue={defaults.blocks[block.key] ?? ''}
-              error={errors?.[`block:${block.key}`]}
-            />
-          ) : (
-            <ListBlock
-              key={block.key}
-              block={block}
-              defaultValue={defaults.blocks[block.key] ?? ''}
-              error={errors?.[`block:${block.key}`]}
-            />
-          ),
-        )}
+        {blocks.map((block) => {
+          const shared = {
+            key: block.key,
+            defaultValue: defaults.blocks[block.key] ?? '',
+            error: errors?.[`block:${block.key}`],
+          }
+
+          switch (block.kind) {
+            case 'prose':
+              return <ProseBlock {...shared} block={block} />
+            case 'line':
+              return <LineBlock {...shared} block={block} />
+            case 'image':
+              return (
+                <ImageBlock
+                  {...shared}
+                  block={block}
+                  uploadsEnabled={uploadsEnabled}
+                />
+              )
+            default:
+              return <ListBlock {...shared} block={block} />
+          }
+        })}
       </fieldset>
 
       {/* ── Search engines ───────────────────────────────────────────────── */}
@@ -213,6 +243,79 @@ function ProseBlock({
         name={`block:${block.key}`}
         rows={block.rows ?? 4}
         defaultValue={defaultValue}
+        error={error}
+      />
+    </Field>
+  )
+}
+
+/**
+ * A heading, an eyebrow or a button label — one line, one input.
+ *
+ * The control is the documentation here: a single-line box is what tells an
+ * editor that this slot is a heading and not somewhere to write a paragraph.
+ * The server enforces the same limit, because the browser never has the last
+ * word (NFR-05).
+ */
+function LineBlock({
+  block,
+  defaultValue,
+  error,
+}: {
+  block: Extract<CmsBlock, { kind: 'line' }>
+  defaultValue: string
+  error?: string
+}) {
+  return (
+    <Field
+      label={block.label}
+      name={`block:${block.key}`}
+      hint={block.hint}
+      error={error}
+    >
+      <Input
+        name={`block:${block.key}`}
+        maxLength={block.max ?? 200}
+        defaultValue={defaultValue}
+        error={error}
+      />
+    </Field>
+  )
+}
+
+/**
+ * A picture on a public page.
+ *
+ * The value stored is an address, as everywhere else on this site, so a
+ * photograph already in the media library can simply be pointed at. Where a
+ * blob store is attached the same field also takes an upload — which is the
+ * whole point of putting images in the page editor rather than leaving them to
+ * a developer.
+ */
+function ImageBlock({
+  block,
+  defaultValue,
+  error,
+  uploadsEnabled,
+}: {
+  block: Extract<CmsBlock, { kind: 'image' }>
+  defaultValue: string
+  error?: string
+  uploadsEnabled: boolean
+}) {
+  return (
+    <Field
+      label={block.label}
+      name={`block:${block.key}`}
+      hint={block.hint}
+      error={error}
+    >
+      <UploadField
+        name={`block:${block.key}`}
+        kind="image"
+        enabled={uploadsEnabled}
+        defaultValue={defaultValue}
+        placeholder="/brand/hero/one.jpg"
         error={error}
       />
     </Field>

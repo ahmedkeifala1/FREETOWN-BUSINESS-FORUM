@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/icon'
 import { db } from '@/lib/db'
 import { formatTimeRange } from '@/lib/format'
 import { Permission, requirePermission } from '@/lib/rbac'
+import { uploadsEnabled } from '@/lib/uploads'
 
 /**
  * Add or edit one speaker (§4.6).
@@ -129,6 +130,7 @@ export default async function AdminSpeakerPage({
 
       <Card>
         <SpeakerForm
+          uploadsEnabled={uploadsEnabled()}
           sectors={sectors}
           defaults={
             speaker

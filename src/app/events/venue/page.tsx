@@ -82,9 +82,13 @@ export default async function VenuePage() {
       />
 
       <PageHero
-        eyebrow={event ? formatDateRange(event.startDate, event.endDate) : 'Events'}
-        title="Venue &"
-        accent="travel"
+        eyebrow={
+          event
+            ? formatDateRange(event.startDate, event.endDate)
+            : (blocks.eyebrow ?? 'Events')
+        }
+        title={blocks.heroTitle ?? 'Venue &'}
+        accent={blocks.heroAccent ?? 'travel'}
         lead={
           blocks.intro ??
           'Everything you need to plan the trip — where the forum is held, how to get here and what to expect when you arrive.'
@@ -98,7 +102,7 @@ export default async function VenuePage() {
             className="inline-flex min-h-12 items-center justify-center gap-2 bg-gold-600 px-6 py-3 text-base font-semibold uppercase tracking-wider text-white hover:bg-gold-700"
           >
             <Icon name="pin" className="size-5" />
-            Open in Maps
+            {blocks.mapLinkLabel ?? 'Open in Maps'}
             <span className="sr-only"> (opens in a new tab)</span>
           </a>
         )}
@@ -110,7 +114,10 @@ export default async function VenuePage() {
         <Section tone="white" size="wide">
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
             <div className="lg:col-span-5">
-              <SectionHeading eyebrow="The venue" title={event.venueName} />
+              <SectionHeading
+                eyebrow={blocks.venueEyebrow ?? 'The venue'}
+                title={event.venueName}
+              />
 
               <address className="mt-6 not-italic leading-relaxed text-ink-700">
                 {event.venueAddress}
@@ -168,9 +175,12 @@ export default async function VenuePage() {
 
       <Section tone="muted" size="wide">
         <SectionHeading
-          eyebrow="Planning the trip"
-          title="What you need to know"
-          lead="Guidance for delegates travelling from outside Sierra Leone. Check anything time-sensitive — visa rules in particular — against the official source before you book."
+          eyebrow={blocks.guidanceEyebrow ?? 'Planning the trip'}
+          title={blocks.guidanceTitle ?? 'What you need to know'}
+          lead={
+            blocks.guidanceLead ??
+            'Guidance for delegates travelling from outside Sierra Leone. Check anything time-sensitive — visa rules in particular — against the official source before you book.'
+          }
         />
 
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
@@ -193,10 +203,8 @@ export default async function VenuePage() {
         </div>
 
         <p className="mt-8 max-w-2xl text-sm text-ink-600">
-          Delegates who need a letter of invitation for a visa application
-          should register first, then email the secretariat with their
-          registration reference — the letter names the delegate and cannot be
-          issued before the registration exists.
+          {blocks.invitationNote ??
+            'Delegates who need a letter of invitation for a visa application should register first, then email the secretariat with their registration reference — the letter names the delegate and cannot be issued before the registration exists.'}
         </p>
       </Section>
 
@@ -205,8 +213,10 @@ export default async function VenuePage() {
       <Section tone="white">
         <Container size="narrow" className="px-0">
           <SectionHeading
-            eyebrow="Access"
-            title="Accessibility and dietary requirements"
+            eyebrow={blocks.accessEyebrow ?? 'Access'}
+            title={
+              blocks.accessTitle ?? 'Accessibility and dietary requirements'
+            }
           />
 
           <div className="mt-6 space-y-4 leading-relaxed text-ink-700">
@@ -232,8 +242,11 @@ export default async function VenuePage() {
       </Section>
 
       <CtaBand
-        title="Book the trip"
-        lead="Registration closes when the venue is full, and the hotel block is released well before the forum opens."
+        title={blocks.ctaTitle ?? 'Book the trip'}
+        lead={
+          blocks.ctaLead ??
+          'Registration closes when the venue is full, and the hotel block is released well before the forum opens.'
+        }
       >
         <ButtonLink
           href="/register"

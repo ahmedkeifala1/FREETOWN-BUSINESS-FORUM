@@ -15,6 +15,7 @@ import {
 import { db } from '@/lib/db'
 import { LeadershipGroup } from '@/lib/enums'
 import { initials, paragraphs } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Leadership & secretariat — the profile cards promised by §4.3.
@@ -32,15 +33,33 @@ export const metadata: Metadata = {
   alternates: { canonical: '/about/leadership' },
 }
 
+/**
+ * The two bands, and the block keys the secretariat writes over them with.
+ *
+ * The group is what the query filters on and is not editorial; the three
+ * strings beside it are. Naming the keys here rather than at the call site
+ * keeps the pair — key and the wording it overrides — in one place, which is
+ * the thing that goes wrong when a heading is made editable one line at a time.
+ */
 const GROUPS = [
   {
     group: LeadershipGroup.LEADERSHIP,
+    keys: {
+      eyebrow: 'officersEyebrow',
+      title: 'officersTitle',
+      lead: 'officersLead',
+    },
     eyebrow: 'Officers',
     title: 'Leadership',
     lead: 'The forum’s elected and appointed officers, accountable to the membership for its direction.',
   },
   {
     group: LeadershipGroup.SECRETARIAT,
+    keys: {
+      eyebrow: 'secretariatEyebrow',
+      title: 'secretariatTitle',
+      lead: 'secretariatLead',
+    },
     eyebrow: 'Day to day',
     title: 'The secretariat',
     lead: 'The team that runs the forum between editions — membership, the programme, and the answer to most enquiries.',
@@ -48,15 +67,18 @@ const GROUPS = [
 ] as const
 
 export default async function LeadershipPage() {
-  const profiles = await db.leadershipProfile.findMany({
-    where: {
-      isPublished: true,
-      group: {
-        in: [LeadershipGroup.LEADERSHIP, LeadershipGroup.SECRETARIAT],
+  const [profiles, copy] = await Promise.all([
+    db.leadershipProfile.findMany({
+      where: {
+        isPublished: true,
+        group: {
+          in: [LeadershipGroup.LEADERSHIP, LeadershipGroup.SECRETARIAT],
+        },
       },
-    },
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-  })
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    }),
+    getPageCopy('leadership'),
+  ])
 
   return (
     <>
@@ -69,17 +91,23 @@ export default async function LeadershipPage() {
       />
 
       <PageHero
-        eyebrow="About"
-        title="The people who run the"
-        accent="forum"
-        lead="FBF is run by its officers and a small secretariat. Their names are here because a forum asking businesses for a subscription should say who is accountable for it."
+        eyebrow={copy('eyebrow', 'About')}
+        title={copy('heroTitle', 'The people who run the')}
+        accent={copy('heroAccent', 'forum')}
+        lead={copy(
+          'heroLead',
+          'FBF is run by its officers and a small secretariat. Their names are here because a forum asking businesses for a subscription should say who is accountable for it.',
+        )}
       />
 
       {profiles.length === 0 ? (
         <Section tone="white">
           <EmptyState
-            title="Profiles are being prepared"
-            message="The secretariat’s profiles have not been published yet. In the meantime the contact page reaches the whole team."
+            title={copy('emptyTitle', 'Profiles are being prepared')}
+            message={copy(
+              'emptyMessage',
+              'The secretariat’s profiles have not been published yet. In the meantime the contact page reaches the whole team.',
+            )}
           >
             <ButtonLink href="/contact" variant="primary">
               Contact the secretariat
@@ -87,13 +115,17 @@ export default async function LeadershipPage() {
           </EmptyState>
         </Section>
       ) : (
-        GROUPS.map(({ group, eyebrow, title, lead }, index) => {
+        GROUPS.map(({ group, keys, eyebrow, title, lead }, index) => {
           const members = profiles.filter((profile) => profile.group === group)
           if (members.length === 0) return null
 
           return (
             <Section key={group} tone={index % 2 === 0 ? 'white' : 'muted'}>
-              <SectionHeading eyebrow={eyebrow} title={title} lead={lead} />
+              <SectionHeading
+                eyebrow={copy(keys.eyebrow, eyebrow)}
+                title={copy(keys.title, title)}
+                lead={copy(keys.lead, lead)}
+              />
 
               <CardGrid columns={3} className="mt-10">
                 {members.map((profile) => (
@@ -158,12 +190,15 @@ export default async function LeadershipPage() {
       )}
 
       <CtaBand
-        title="How the forum is governed"
-        lead="The structure these officers work within — the board, the committees, and how decisions are taken."
+        title={copy('ctaTitle', 'How the forum is governed')}
+        lead={copy(
+          'ctaLead',
+          'The structure these officers work within — the board, the committees, and how decisions are taken.',
+        )}
         tone="harbour"
       >
         <ButtonLink href="/about/governance" variant="accent" size="lg">
-          Governance & structure
+          {copy('ctaLinkLabel', 'Governance & structure')}
         </ButtonLink>
       </CtaBand>
     </>

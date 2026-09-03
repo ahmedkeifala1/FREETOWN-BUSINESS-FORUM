@@ -10,6 +10,7 @@ import { db } from '@/lib/db'
 import { ContentStatus } from '@/lib/enums'
 import { formatDate } from '@/lib/format'
 import { Permission, requirePermission, userHas } from '@/lib/rbac'
+import { uploadsEnabled } from '@/lib/uploads'
 
 /**
  * Write or edit one article (§4.13, FR-02).
@@ -107,6 +108,7 @@ export default async function AdminArticlePage({
 
       <Card>
         <ArticleForm
+          uploadsEnabled={uploadsEnabled()}
           categories={categories}
           canPublish={canPublish}
           defaults={

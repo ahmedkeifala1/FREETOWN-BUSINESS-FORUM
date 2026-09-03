@@ -12,6 +12,7 @@ import {
   SectionHeading,
 } from '@/components/ui/layout'
 import { db } from '@/lib/db'
+import { getPageCopy } from '@/lib/settings'
 import { MediaKind } from '@/lib/enums'
 import { truncate } from '@/lib/format'
 
@@ -38,16 +39,19 @@ export const metadata: Metadata = {
 }
 
 export default async function RecordingsPage() {
-  const collections = await db.mediaCollection.findMany({
-    where: { isPublished: true, kind: MediaKind.VIDEO },
-    orderBy: { sortOrder: 'asc' },
-    include: {
-      assets: {
-        where: { isPublic: true },
-        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+  const [collections, copy] = await Promise.all([
+    db.mediaCollection.findMany({
+      where: { isPublished: true, kind: MediaKind.VIDEO },
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        assets: {
+          where: { isPublic: true },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+        },
       },
-    },
-  })
+    }),
+    getPageCopy('learning-hub'),
+  ])
 
   const withAssets = collections.filter(
     (collection) => collection.assets.length > 0,
@@ -64,17 +68,23 @@ export default async function RecordingsPage() {
       />
 
       <PageHero
-        eyebrow="Learning Hub"
-        title="Session"
-        accent="recordings"
-        lead="What was actually said on the platform — keynotes, panels and roundtables from previous editions, free to watch."
+        eyebrow={copy('recordingsEyebrow', 'Learning Hub')}
+        title={copy('recordingsHeroTitle', 'Session')}
+        accent={copy('recordingsHeroAccent', 'recordings')}
+        lead={copy(
+          'recordingsHeroLead',
+          'What was actually said on the platform — keynotes, panels and roundtables from previous editions, free to watch.',
+        )}
       />
 
       {withAssets.length === 0 ? (
         <Section tone="white">
           <EmptyState
-            title="Recordings are being prepared"
-            message="Sessions from the last edition are being edited and captioned. They will appear here as they are released."
+            title={copy('recordingsEmptyTitle', 'Recordings are being prepared')}
+            message={copy(
+              'recordingsEmptyMessage',
+              'Sessions from the last edition are being edited and captioned. They will appear here as they are released.',
+            )}
           >
             <ButtonLink href="/events/agenda" variant="primary">
               See this year’s programme
@@ -159,8 +169,11 @@ export default async function RecordingsPage() {
       )}
 
       <CtaBand
-        title="Recordings are not the room"
-        lead="The deals get done in the corridors between the sessions. That part is not filmed."
+        title={copy('recordingsCtaTitle', 'Recordings are not the room')}
+        lead={copy(
+          'recordingsCtaLead',
+          'The deals get done in the corridors between the sessions. That part is not filmed.',
+        )}
       >
         <ButtonLink
           href="/register"

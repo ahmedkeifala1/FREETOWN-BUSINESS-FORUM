@@ -96,10 +96,13 @@ export default async function TiersPage() {
       />
 
       <PageHero
-        eyebrow="Membership"
-        title="Four tiers, one"
-        accent="membership"
-        lead="Every tier carries a directory listing, the member rate on forum registration and the monthly briefing. What changes is how much of the forum's machinery works on your behalf."
+        eyebrow={blocks.tiersHeroEyebrow ?? 'Membership'}
+        title={blocks.tiersHeroTitle ?? 'Four tiers, one'}
+        accent={blocks.tiersHeroAccent ?? 'membership'}
+        lead={
+          blocks.tiersHeroLead ??
+          "Every tier carries a directory listing, the member rate on forum registration and the monthly briefing. What changes is how much of the forum's machinery works on your behalf."
+        }
       >
         <ButtonLink
           href="/membership/apply"
@@ -115,8 +118,11 @@ export default async function TiersPage() {
       {tiers.length === 0 ? (
         <Section tone="white">
           <EmptyState
-            title="Tiers are being set"
-            message="Membership rates for the coming year are being confirmed. Register your interest and you will be told as soon as they are published."
+            title={blocks.tiersEmptyTitle ?? 'Tiers are being set'}
+            message={
+              blocks.tiersEmptyMessage ??
+              'Membership rates for the coming year are being confirmed. Register your interest and you will be told as soon as they are published.'
+            }
           >
             <ButtonLink href="/contact" variant="primary">
               Register your interest
@@ -163,9 +169,15 @@ export default async function TiersPage() {
           <div className="grid gap-8 lg:grid-cols-12 lg:items-center lg:gap-14">
             <div className="lg:col-span-7">
               <SectionHeading
-                eyebrow="The arithmetic"
-                title="Membership pays for part of itself"
-                lead="Members register for the forum at the member rate. On the current edition that is the difference below, per delegate, before anything else membership carries."
+                eyebrow={blocks.tiersSavingEyebrow ?? 'The arithmetic'}
+                title={
+                  blocks.tiersSavingTitle ??
+                  'Membership pays for part of itself'
+                }
+                lead={
+                  blocks.tiersSavingLead ??
+                  'Members register for the forum at the member rate. On the current edition that is the difference below, per delegate, before anything else membership carries.'
+                }
                 inverted
               />
             </div>
@@ -180,7 +192,8 @@ export default async function TiersPage() {
                   )}
                 </p>
                 <p className="mt-2 text-white/75">
-                  saved on every forum registration
+                  {blocks.tiersSavingCaption ??
+                    'saved on every forum registration'}
                 </p>
                 <Link
                   href="/register"
@@ -199,9 +212,12 @@ export default async function TiersPage() {
 
       <Section tone="muted" size="wide">
         <SectionHeading
-          eyebrow="Paying"
-          title="How subscriptions are paid"
-          lead="The same methods as forum registration, including the two that most Sierra Leonean businesses actually use."
+          eyebrow={blocks.tiersPayingEyebrow ?? 'Paying'}
+          title={blocks.tiersPayingTitle ?? 'How subscriptions are paid'}
+          lead={
+            blocks.tiersPayingLead ??
+            'The same methods as forum registration, including the two that most Sierra Leonean businesses actually use.'
+          }
         />
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -232,8 +248,8 @@ export default async function TiersPage() {
         <Section tone="white">
           <Container size="narrow" className="px-0">
             <SectionHeading
-              eyebrow="Before you apply"
-              title="Questions we are asked"
+              eyebrow={blocks.tiersFaqEyebrow ?? 'Before you apply'}
+              title={blocks.tiersFaqTitle ?? 'Questions we are asked'}
             />
             <div className="mt-8">
               <Faq items={faqs} />
@@ -243,8 +259,11 @@ export default async function TiersPage() {
       )}
 
       <CtaBand
-        title="Pick a tier and apply"
-        lead="The application takes a few minutes. Nothing is charged until the secretariat has approved it."
+        title={blocks.tiersCtaTitle ?? 'Pick a tier and apply'}
+        lead={
+          blocks.tiersCtaLead ??
+          'The application takes a few minutes. Nothing is charged until the secretariat has approved it.'
+        }
       >
         <ButtonLink
           href="/membership/apply"

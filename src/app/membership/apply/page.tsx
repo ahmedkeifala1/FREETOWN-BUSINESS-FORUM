@@ -16,6 +16,7 @@ import {
 import { getCurrentUser } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { formatMoney, isCurrency } from '@/lib/money'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Apply or renew (SDR §4.10, FR-09).
@@ -61,9 +62,12 @@ export default async function MembershipApplyPage({
 }: {
   searchParams: Promise<{ tier?: string }>
 }) {
-  const [{ tier: selectedTierSlug }, user] = await Promise.all([
+  const [{ tier: selectedTierSlug }, user, copy] = await Promise.all([
     searchParams,
     getCurrentUser(),
+    // Shares the membership page's copy: the application is a step of that
+    // page's journey, not a subject of its own.
+    getPageCopy('membership'),
   ])
 
   const [tierRows, sectors] = await Promise.all([
@@ -110,17 +114,23 @@ export default async function MembershipApplyPage({
       />
 
       <PageHero
-        eyebrow="Membership"
-        title="Apply to"
-        accent="join"
-        lead="Choose a tier, tell us about your organisation, and the secretariat will come back to you within five working days. Nothing is payable until your application has been approved."
+        eyebrow={copy('applyEyebrow', 'Membership')}
+        title={copy('applyTitle', 'Apply to')}
+        accent={copy('applyAccent', 'join')}
+        lead={copy(
+          'applyLead',
+          'Choose a tier, tell us about your organisation, and the secretariat will come back to you within five working days. Nothing is payable until your application has been approved.',
+        )}
       />
 
       <Section tone="white" size="wide">
         {tiers.length === 0 ? (
           <EmptyState
-            title="Applications are closed"
-            message="Membership tiers are being updated. Please check back shortly, or contact the secretariat and we will let you know when applications reopen."
+            title={copy('applyEmptyTitle', 'Applications are closed')}
+            message={copy(
+              'applyEmptyMessage',
+              'Membership tiers are being updated. Please check back shortly, or contact the secretariat and we will let you know when applications reopen.',
+            )}
           >
             <ButtonLink href="/contact" variant="outline" size="md">
               Contact the secretariat

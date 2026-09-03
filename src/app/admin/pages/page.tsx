@@ -49,9 +49,28 @@ export default async function AdminPagesPage() {
       <header>
         <h1 className="font-display text-3xl font-bold text-ink-950">Pages</h1>
         <p className="mt-2 max-w-2xl leading-relaxed text-ink-600">
-          The wording on the public site&rsquo;s standing pages. Each section you
+          The wording on every public page &mdash; headings, standfirsts, button
+          labels and the messages shown when a list is empty. Each section you
           leave blank keeps the wording built into the page, so nothing here can
           empty a page by accident.
+        </p>
+        <p className="mt-3 max-w-2xl leading-relaxed text-ink-600">
+          Photographs and film are not here: they live in{' '}
+          <Link
+            href="/admin/media"
+            className="font-medium text-forest-700 hover:underline"
+          >
+            Media
+          </Link>
+          , which is where the homepage picture wall is changed. Contact
+          details, the hero wording and the newsletter blurb are in{' '}
+          <Link
+            href="/admin/settings"
+            className="font-medium text-forest-700 hover:underline"
+          >
+            Settings
+          </Link>
+          .
         </p>
       </header>
 

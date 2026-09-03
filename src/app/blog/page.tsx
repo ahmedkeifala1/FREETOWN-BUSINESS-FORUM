@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/layout'
 import { db } from '@/lib/db'
 import { formatDateShort, truncate } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Blog — news, insight and press (§4.13).
@@ -39,7 +40,8 @@ export default async function BlogPage({
 }) {
   const { category } = await searchParams
 
-  const [categories, articles] = await Promise.all([
+  const [copy, categories, articles] = await Promise.all([
+    getPageCopy('blog'),
     db.category.findMany({ orderBy: { sortOrder: 'asc' } }),
     db.article.findMany({
       where: {
@@ -64,10 +66,13 @@ export default async function BlogPage({
       />
 
       <PageHero
-        eyebrow="Blog"
-        title="What is moving"
-        accent="the economy"
-        lead="Deals, policy changes and the businesses behind them — written by the secretariat and by members."
+        eyebrow={copy('eyebrow', 'Blog')}
+        title={copy('heroTitle', 'What is moving')}
+        accent={copy('heroAccent', 'the economy')}
+        lead={copy(
+          'heroLead',
+          'Deals, policy changes and the businesses behind them — written by the secretariat and by members.',
+        )}
       />
 
       <Section tone="white" size="wide">
@@ -93,11 +98,11 @@ export default async function BlogPage({
 
         {articles.length === 0 ? (
           <EmptyState
-            title="Nothing here yet"
+            title={copy('emptyTitle', 'Nothing here yet')}
             message={
               activeCategory
                 ? `No articles have been published under ${activeCategory.name}.`
-                : 'The first articles are being written.'
+                : copy('emptyMessage', 'The first articles are being written.')
             }
           >
             <Link

@@ -20,6 +20,7 @@ import {
   type OpportunityStage,
 } from '@/lib/enums'
 import { formatDate, paragraphs, truncate } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * One Deal Room proposition (SDR §4.12 "→ project detail pages").
@@ -80,7 +81,10 @@ export default async function OpportunityPage({
   params: Promise<Params>
 }) {
   const { slug } = await params
-  const opportunity = await getOpportunity(slug)
+  const [opportunity, copy] = await Promise.all([
+    getOpportunity(slug),
+    getPageCopy('deal-room'),
+  ])
 
   if (!opportunity) notFound()
 
@@ -280,7 +284,7 @@ export default async function OpportunityPage({
       {related.length > 0 && opportunity.sector && (
         <Section tone="muted" size="wide">
           <SectionHeading
-            eyebrow="Same sector"
+            eyebrow={copy('detailRelatedEyebrow', 'Same sector')}
             title={`Other ${opportunity.sector.name.toLowerCase()} propositions`}
           />
 
@@ -312,8 +316,11 @@ export default async function OpportunityPage({
       )}
 
       <CtaBand
-        title="Looking for capital yourself?"
-        lead="Propositions in the Deal Room started as an application. Yours can too."
+        title={copy('detailCtaTitle', 'Looking for capital yourself?')}
+        lead={copy(
+          'detailCtaLead',
+          'Propositions in the Deal Room started as an application. Yours can too.',
+        )}
       >
         <ButtonLink
           href="/deal-room/apply"

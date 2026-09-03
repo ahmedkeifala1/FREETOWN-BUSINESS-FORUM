@@ -73,6 +73,9 @@ const paths: Record<string, string> = {
     'M6 3h3l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4 5.2 2 2 0 0 1 6 3Z',
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 5 5',
   download: 'M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2',
+  // `download` with the arrow reversed — the tray is the same, so the pair
+  // reads as one idea at the small size the admin forms use them at.
+  upload: 'M12 15V3m0 0 4 4m-4-4-4 4M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2',
   arrowRight: 'M4 12h15m0 0-6-6m6 6-6 6',
   // Reordering and adding rows in the admin editors, where an arrow that
   // points the way the row moves reads more plainly than a chevron.

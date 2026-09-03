@@ -21,6 +21,7 @@ import {
   type BusinessSize,
 } from '@/lib/enums'
 import { formatDate, initials, paragraphs, truncate } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 import { isStaff } from '@/lib/rbac'
 
 /**
@@ -85,7 +86,11 @@ export default async function ListingPage({
 }) {
   const { slug } = await params
 
-  const [listing, user] = await Promise.all([getListing(slug), getCurrentUser()])
+  const [listing, user, copy] = await Promise.all([
+    getListing(slug),
+    getCurrentUser(),
+    getPageCopy('directory'),
+  ])
 
   if (!listing) notFound()
 
@@ -294,7 +299,7 @@ export default async function ListingPage({
       {related.length > 0 && listing.sector && (
         <Section tone="muted" size="wide">
           <SectionHeading
-            eyebrow="Same sector"
+            eyebrow={copy('detailRelatedEyebrow', 'Same sector')}
             title={`Other ${listing.sector.name.toLowerCase()} members`}
           />
 
@@ -322,8 +327,14 @@ export default async function ListingPage({
       )}
 
       <CtaBand
-        title="Put your business in front of the same people"
-        lead="A directory listing comes with every membership tier — and it is the page investors and buyers actually land on."
+        title={copy(
+          'detailCtaTitle',
+          'Put your business in front of the same people',
+        )}
+        lead={copy(
+          'detailCtaLead',
+          'A directory listing comes with every membership tier — and it is the page investors and buyers actually land on.',
+        )}
       >
         <ButtonLink
           href="/membership/apply"

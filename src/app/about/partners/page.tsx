@@ -15,6 +15,7 @@ import {
 import { db } from '@/lib/db'
 import { PartnerKind } from '@/lib/enums'
 import { initials } from '@/lib/format'
+import { getPageCopy } from '@/lib/settings'
 
 /**
  * Partners & affiliations (SDR §4.3 "partners & affiliations — logo grid").
@@ -36,21 +37,41 @@ export const metadata: Metadata = {
   alternates: { canonical: '/about/partners' },
 }
 
+/**
+ * The three bands, each with the block keys that override its wording — the
+ * same pairing as the leadership page, and for the same reason: the kind is
+ * what the filter needs and the three strings are what the secretariat writes.
+ */
 const GROUPS = [
   {
     kind: PartnerKind.PARTNER,
+    keys: {
+      eyebrow: 'partnersEyebrow',
+      title: 'partnersTitle',
+      lead: 'partnersLead',
+    },
     eyebrow: 'We work with',
     title: 'Institutional partners',
     lead: 'Government ministries, agencies and institutions the forum works with directly on programmes, policy dialogue and the forum itself.',
   },
   {
     kind: PartnerKind.AFFILIATION,
+    keys: {
+      eyebrow: 'affiliationsEyebrow',
+      title: 'affiliationsTitle',
+      lead: 'affiliationsLead',
+    },
     eyebrow: 'We belong to',
     title: 'Affiliations',
     lead: 'Bodies the forum is a member of, or is formally associated with, in Sierra Leone and across the region.',
   },
   {
     kind: PartnerKind.SUPPORTER,
+    keys: {
+      eyebrow: 'supportersEyebrow',
+      title: 'supportersTitle',
+      lead: 'supportersLead',
+    },
     eyebrow: 'Backed by',
     title: 'Supporters',
     lead: 'Organisations that fund or otherwise support the forum’s work. Support does not carry any say in the forum’s positions.',
@@ -58,10 +79,13 @@ const GROUPS = [
 ] as const
 
 export default async function PartnersPage() {
-  const partners = await db.partner.findMany({
-    where: { isPublished: true },
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-  })
+  const [partners, copy] = await Promise.all([
+    db.partner.findMany({
+      where: { isPublished: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    }),
+    getPageCopy('partners'),
+  ])
 
   return (
     <>
@@ -74,17 +98,23 @@ export default async function PartnersPage() {
       />
 
       <PageHero
-        eyebrow="About"
-        title="Who the forum works"
-        accent="with"
-        lead="FBF convenes. That only works if the institutions that decide things are in the room — so the forum’s standing relationships are named here rather than implied by a logo strip."
+        eyebrow={copy('eyebrow', 'About')}
+        title={copy('heroTitle', 'Who the forum works')}
+        accent={copy('heroAccent', 'with')}
+        lead={copy(
+          'heroLead',
+          'FBF convenes. That only works if the institutions that decide things are in the room — so the forum’s standing relationships are named here rather than implied by a logo strip.',
+        )}
       />
 
       {partners.length === 0 ? (
         <Section tone="white">
           <EmptyState
-            title="Partners are being confirmed"
-            message="Partnerships for the coming edition are being finalised and will be listed here as they are agreed."
+            title={copy('emptyTitle', 'Partners are being confirmed')}
+            message={copy(
+              'emptyMessage',
+              'Partnerships for the coming edition are being finalised and will be listed here as they are agreed.',
+            )}
           >
             <ButtonLink href="/contact" variant="primary">
               Talk to us about partnering
@@ -92,13 +122,17 @@ export default async function PartnersPage() {
           </EmptyState>
         </Section>
       ) : (
-        GROUPS.map(({ kind, eyebrow, title, lead }, index) => {
+        GROUPS.map(({ kind, keys, eyebrow, title, lead }, index) => {
           const group = partners.filter((partner) => partner.kind === kind)
           if (group.length === 0) return null
 
           return (
             <Section key={kind} tone={index % 2 === 0 ? 'white' : 'muted'}>
-              <SectionHeading eyebrow={eyebrow} title={title} lead={lead} />
+              <SectionHeading
+                eyebrow={copy(keys.eyebrow, eyebrow)}
+                title={copy(keys.title, title)}
+                lead={copy(keys.lead, lead)}
+              />
 
               <CardGrid columns={3} className="mt-10">
                 {group.map((partner) => (
@@ -139,11 +173,14 @@ export default async function PartnersPage() {
       )}
 
       <CtaBand
-        title="Partner with the forum"
-        lead="Institutions working on enterprise, trade, investment or skills in Sierra Leone — the secretariat would like to hear from you."
+        title={copy('ctaTitle', 'Partner with the forum')}
+        lead={copy(
+          'ctaLead',
+          'Institutions working on enterprise, trade, investment or skills in Sierra Leone — the secretariat would like to hear from you.',
+        )}
       >
         <ButtonLink href="/contact" variant="accent" size="lg">
-          Start a conversation
+          {copy('ctaLinkLabel', 'Start a conversation')}
         </ButtonLink>
         <ButtonLink
           href="/events/sponsors"

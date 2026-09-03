@@ -11,6 +11,7 @@ import { db } from '@/lib/db'
 import { ContentStatus } from '@/lib/enums'
 import { formatDate, parseJsonColumn } from '@/lib/format'
 import { Permission, requirePermission, userHas } from '@/lib/rbac'
+import { uploadsEnabled } from '@/lib/uploads'
 
 /**
  * Edit one CMS page (§15).
@@ -127,13 +128,34 @@ export default async function AdminPageEditor({
           slug={page.slug}
           blocks={page.blocks}
           canPublish={canPublish}
+          uploadsEnabled={uploadsEnabled()}
           defaults={{
             title: row?.title ?? page.defaultTitle,
             metaTitle: row?.metaTitle ?? null,
             metaDescription: row?.metaDescription ?? null,
-            // A page nobody has written yet opens as a draft, so saving it to
-            // see how it reads cannot put half-finished copy on the site.
-            status: row?.status ?? ContentStatus.DRAFT,
+            /*
+              A page nobody has saved yet opens ready to publish, for anyone
+              who is allowed to.
+
+              It used to open as a draft, on the reasoning that saving a page
+              to see how it reads should not put half-finished copy on the
+              site. That was written when two pages lacked a row and their
+              blocks were the whole body. It is now the wrong default: most
+              pages in the manifest are *overrides* — a blank block falls back
+              to the wording in the route file — so publishing one changes
+              nothing until somebody writes something, while leaving it a
+              draft means an editor's first save silently does nothing at all.
+              Fifteen pages have no row, so that silence would be the normal
+              first experience of this screen rather than an edge case.
+
+              Someone who cannot publish still opens on a draft, because that
+              is the only status they are allowed to save.
+            */
+            status:
+              row?.status ??
+              (canPublish ? ContentStatus.PUBLISHED : ContentStatus.DRAFT),
+            /* Drives the notice on a page that has never been saved. */
+            isNew: !row,
             blocks,
           }}
         />

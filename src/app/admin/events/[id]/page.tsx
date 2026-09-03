@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/icon'
 import { db } from '@/lib/db'
 import { parseJsonColumn, toDateTimeInput } from '@/lib/format'
 import { Permission, requirePermission } from '@/lib/rbac'
+import { uploadsEnabled } from '@/lib/uploads'
 
 /**
  * Add or edit one forum (§4.4).
@@ -144,6 +145,7 @@ export default async function AdminEventPage({
 
       <Card>
         <EventForm
+          uploadsEnabled={uploadsEnabled()}
           defaults={
             event
               ? {
