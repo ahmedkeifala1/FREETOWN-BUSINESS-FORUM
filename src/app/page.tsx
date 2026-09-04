@@ -1,24 +1,16 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { HeroMosaic, type MosaicTile } from '@/components/site/hero-mosaic'
-import { NewsletterForm } from '@/components/site/newsletter-form'
+import { HeroSlider, type HeroSlide } from '@/components/site/hero-slider'
 import { ButtonLink } from '@/components/ui/button'
 import { Badge, LinkCard } from '@/components/ui/card'
-import { Icon, type IconName } from '@/components/ui/icon'
-import {
-  CardGrid,
-  Container,
-  Section,
-  SectionHeading,
-} from '@/components/ui/layout'
+import { Icon } from '@/components/ui/icon'
+import { CardGrid, Container, Section } from '@/components/ui/layout'
 import { db } from '@/lib/db'
 import { formatDateShort, truncate } from '@/lib/format'
-import { formatMoney } from '@/lib/money'
 import {
   getCurrentEvent,
   getPageCopy,
-  getSectors,
   getSettings,
   setting,
   type PageCopy,
@@ -27,61 +19,68 @@ import {
 /**
  * Homepage (SDR §4.2).
  *
- * Every band on this page is read from the database — the hero, the sector
- * grid, the Deal Room teaser and the news cards (FR-01) — and
- * since the page editor gained the `home` entry, so is the wording around
- * them. The section headings below are still written in this file, but as
- * *fallbacks*: `copy(key, fallback)` prefers what the secretariat has written
- * and uses the line here when they have written nothing. See `getPageCopy`
- * for why the words stay in the source rather than moving to a seed.
+ * Rebuilt to the composition of the reference page the secretariat gave us
+ * (germanyafrica.com). That page opens on the organisation's own news rather
+ * than on a statement about itself, and its order is the argument: what we
+ * have been doing, then what else we have been doing, then who we are, then
+ * what we believe, then how to reach us. The section list below is that order.
  *
- * The layout follows the reference the secretariat gave us
- * (londonbusinessforum.com): a statement hero with a cycling phrase, then the
- * routes into the site. The palette, typography and section list stay as
- * specified in §3.2/§4.2 — this is that page's rhythm, not its brand.
+ * What is borrowed is the rhythm, not the material. The palette, the
+ * typography, the photographs and every word are FBF's own — the reference is
+ * a wireframe, and its copy is about Germany. This is the same arrangement the
+ * previous homepage had with londonbusinessforum.com, recorded here for the
+ * same reason: so a later reader knows which decisions are ours to revisit and
+ * which are a client's brief.
  *
- * The secretariat has since cut eight of the bands §4.2 lists: the six that
- * ran between the hero and the sector grid — the endorsements, the statement
- * and its stat counters, the programme highlights, the film band, the speaker
- * wall and "who should attend" — the sponsor strip that closed the page, and
- * the membership teaser that stood between the Deal Room and the news. They
- * are not hidden behind a flag or an empty-state guard: a band nobody asked to
- * keep is better deleted than left switched off, and the material they showed
- * all still has its own page (`/events/agenda`, `/events/speakers`,
- * `/events/sponsors`, `/learning-hub/recordings`, `/membership`, `/about`),
- * which the header and the teasers below already reach. The section numbering
- * below keeps its gaps closed, so what is left reads in order.
+ * The bands the previous homepage carried between the hero and the news — the
+ * sector grid and the Deal Room teaser — are gone with it, at the
+ * secretariat's request and after being asked twice, because the reference
+ * page has no equivalent of either. They are not hidden behind a flag: a band
+ * nobody asked to keep is better deleted than left switched off, and both
+ * subjects keep their own pages, which the header nav and the footer reach.
+ * The newsletter band went the same way and the footer still carries the form.
  *
- * Two of those took the page's only route into their subject with them. The
- * sponsor strip carried the only "Become a sponsor" call to action — including
- * the one it showed in place of the strip when an edition had no sponsors
- * signed yet — and the membership teaser carried the only prices and the only
- * "Become a member" button. Both subjects are now reached from the header nav
- * and the footer rather than from this page. Nothing on the homepage quotes a
- * membership rate any more, which is the point: the prices live on
- * `/membership` and `/membership/tiers`, in one place.
+ * The consequence worth naming: this page no longer routes anyone into the
+ * Deal Room or the sector guides. Those two were the homepage's only entry
+ * points to the features §4.7 and §4.11 describe, and the nav is now carrying
+ * that traffic alone.
  *
- * The queries run in two `Promise.all` batches rather than sequentially.
- * Awaiting them in series would add each round-trip to time-to-first-byte,
- * which is the budget that matters on a 3G handset (NFR-01).
+ * The queries run in one `Promise.all` rather than sequentially. Awaiting them
+ * in series would add each round-trip to time-to-first-byte, which is the
+ * budget that matters on a 3G handset (NFR-01).
  */
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
 }
 
+/**
+ * How many stories the hero rotates through before the grid takes over.
+ *
+ * Three, because the grid below lays out in threes and the forum has six
+ * articles published: three in the hero leaves the grid one full row. Four
+ * would leave two cards in a row of three, which reads as a page that ran out
+ * rather than one that chose where to stop. Raise it when the archive is
+ * deeper — the reference page rotates six.
+ */
+const SLIDE_COUNT = 3
+
 export default async function HomePage() {
-  const [settings, event, sectors, copy] = await Promise.all([
+  const [settings, event, copy, articles, photos] = await Promise.all([
     getSettings(),
     getCurrentEvent(),
-    getSectors(),
     getPageCopy('home'),
-  ])
-
-  const [galleryPhotos, articles, opportunities, videos] = await Promise.all([
-    // The hero mosaic. The forum's own photographs, in the order the
-    // secretariat set on the collection — twelve is more than the wall shows
-    // at any viewport, so removing one never opens a hole in the composition.
+    db.article.findMany({
+      where: { status: 'PUBLISHED' },
+      orderBy: { publishedAt: 'desc' },
+      take: 9,
+      include: { category: { select: { name: true, slug: true } } },
+    }),
+    // The forum's own photographs, in the order the secretariat set on the
+    // collection. They back the hero slides and stand in for the article
+    // thumbnails: no article on file carries a hero image of its own, and a
+    // news-led page with no pictures is the reference composition with its
+    // point removed.
     db.mediaAsset.findMany({
       where: {
         isPublic: true,
@@ -92,393 +91,80 @@ export default async function HomePage() {
       take: 12,
       select: { id: true, url: true },
     }),
-    db.article.findMany({
-      where: { status: 'PUBLISHED' },
-      orderBy: { publishedAt: 'desc' },
-      take: 3,
-      include: { category: { select: { name: true, slug: true } } },
-    }),
-    db.opportunity.findMany({
-      where: { isPublished: true },
-      orderBy: { publishedAt: 'desc' },
-      take: 3,
-      include: { sector: { select: { name: true } } },
-    }),
-    // The forum's own footage, in the secretariat's order, for the hero
-    // mosaic. Only self-hosted files are taken: the rest of the video
-    // collection lives on a platform whose player a decorative tile has no
-    // business embedding, and those belong on the recordings page where they
-    // are linked out to their host. Four is more than the wall places, so a
-    // fifth upload never lands in the hero unasked.
-    db.mediaAsset.findMany({
-      where: {
-        isPublic: true,
-        kind: 'VIDEO',
-        url: { startsWith: '/' },
-        collection: { slug: 'forum-videos', isPublished: true },
-      },
-      orderBy: { sortOrder: 'asc' },
-      take: 4,
-      select: {
-        id: true,
-        url: true,
-        title: true,
-        caption: true,
-        altText: true,
-        thumbnailUrl: true,
-      },
-    }),
   ])
+
+  /**
+   * A picture for the nth story.
+   *
+   * The gallery is walked in order and wraps when it runs out, so eight
+   * photographs dress nine articles without leaving the last one bare. An
+   * article that has its own hero image uses that instead — the fallback is
+   * for the state the site is actually in, not a rule that images live in the
+   * gallery.
+   */
+  const pictureFor = (index: number, own: string | null): string | null =>
+    own ?? (photos.length > 0 ? photos[index % photos.length].url : null)
+
+  const slides: HeroSlide[] = articles.slice(0, SLIDE_COUNT).map(
+    (article, index): HeroSlide => ({
+      id: article.id,
+      href: `/blog/${article.slug}`,
+      eyebrow:
+        article.category?.name ??
+        (article.publishedAt ? formatDateShort(article.publishedAt) : null),
+      title: article.title,
+      excerpt: truncate(article.excerpt, 160),
+      imageUrl: pictureFor(index, article.heroImageUrl),
+    }),
+  )
+
+  // The stories the hero did not take, capped at two full rows of three.
+  const rest = articles.slice(SLIDE_COUNT, SLIDE_COUNT + 6)
 
   return (
     <>
       {event && <EventStructuredData event={event} />}
 
-      <Hero settings={settings} tiles={buildMosaic(galleryPhotos, videos)} />
-      <Sectors sectors={sectors} copy={copy} />
-      <DealRoomTeaser opportunities={opportunities} copy={copy} />
-      <LatestNews articles={articles} copy={copy} />
-      <NewsletterBand settings={settings} copy={copy} />
+      <h1 className="sr-only">
+        {setting(settings, 'site.name')} — {setting(settings, 'site.tagline')}
+      </h1>
+
+      <HeroSlider slides={slides} />
+      <MoreStories
+        articles={rest}
+        copy={copy}
+        pictureFor={pictureFor}
+        offset={SLIDE_COUNT}
+      />
+      <Mission settings={settings} copy={copy} />
+      <WhatWeAre copy={copy} />
+      <PullQuote copy={copy} photo={photos[0]?.url ?? null} />
+      <ContactBand copy={copy} />
     </>
   )
 }
 
-/**
- * Interleave the gallery photographs with the forum's clips for the hero
- * mosaic.
- *
- * The wall used to carry three flat tiles stating the delegate, country and
- * sector counts. It no longer does — the secretariat would rather the fold
- * showed the forum itself — so the positions those tiles held now go to
- * footage, and the rest of the wall to photographs. The figures themselves had
- * moved to the stats band below the hero, which has since been cut with it;
- * they are on `/about` and in the event's own pages, not on this page at all.
- *
- * A clip lands every fourth tile, which in a three-column grid means no two of
- * them ever share a row or sit directly above one another — the block reads as
- * scattered without being randomised, and a random layout would differ between
- * the server render and the client's (NFR-01). It also keeps the clips clear
- * of the positions the mosaic enlarges; see FEATURE_POSITIONS.
- *
- * Everything past the photographs is appended rather than dropped, so a wall
- * with more clips than places for them still shows all of them — and a site
- * with no video on file simply gets the photographs, with no hole where a
- * tile was expected.
- */
-function buildMosaic(
-  photos: Array<{ id: string; url: string }>,
-  videos: Array<{ id: string; url: string; thumbnailUrl: string | null }>,
-): MosaicTile[] {
-  const clips: MosaicTile[] = videos.map((video) => ({
-    kind: 'video',
-    id: video.id,
-    url: video.url,
-    posterUrl: video.thumbnailUrl,
-  }))
-
-  const photographs: MosaicTile[] = photos.map((photo) => ({
-    kind: 'photo',
-    id: photo.id,
-    url: photo.url,
-  }))
-
-  const tiles: MosaicTile[] = []
-  let nextClip = 0
-
-  for (const photograph of photographs) {
-    if (tiles.length % 4 === 3 && nextClip < clips.length) {
-      tiles.push(clips[nextClip])
-      nextClip += 1
-    }
-    tiles.push(photograph)
-  }
-
-  return tiles.concat(clips.slice(nextClip))
-}
-
-// ── 1. Hero ─────────────────────────────────────────────────────────────────
+// ── 1. The rest of the stories ──────────────────────────────────────────────
 
 /**
- * The statement hero (§4.2), built to the composition of the reference page
- * the secretariat gave us.
+ * The news grid under the hero.
  *
- * Near-black ground; a lead-in line and three stacked words at display size
- * with the last in the accent, which is the whole left half. The right half is
- * the mosaic wall.
- *
- * The standfirst under the headline — the forum's tagline, or the event's own
- * where it had one — has been cut at the secretariat's request. The headline
- * carries the fold on its own now, so nothing was moved up to fill the space:
- * the words are the statement, and a sentence explaining them underneath was
- * what the composition was doing without. The tagline itself is untouched and
- * still reads in the footer and in the page metadata; only this one printing
- * of it is gone. That is also why the hero no longer takes the current event
- * at all — the standfirst was the only thing it read from it.
- *
- * The panel is absolutely positioned on `lg` so it reaches the right edge of
- * the viewport without any `100vw` arithmetic, which overflows by the width of
- * the scrollbar on Windows. Below `lg` it returns to normal flow and stacks
- * under the headline, after the call to action rather than before it.
+ * The reference page runs its remaining articles as cards directly beneath the
+ * slider, with no heading between the two — the hero and the grid read as one
+ * block of "here is what we have been doing". A heading is offered here all
+ * the same, because that page is a think tank publishing weekly and this one
+ * is a secretariat publishing occasionally: with six stories on file the grid
+ * needs to say what it is, or it reads as the hero repeating itself.
  */
-function Hero({
-  settings,
-  tiles,
-}: {
-  settings: Record<string, string>
-  tiles: MosaicTile[]
-}) {
-  const statement = setting(settings, 'home.heroStatement')
-  const words = setting(settings, 'home.heroWords')
-    .split(',')
-    .map((word) => word.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-
-  return (
-    <section className="relative isolate overflow-hidden bg-ink-950 text-white">
-      <Container size="wide">
-        <div className="py-14 sm:py-20 lg:w-[54%] lg:py-28 lg:pr-10">
-          {/* One mark per word, stacked in a single grid cell and cross-faded
-              on the same loop as the words. The reference page changes the
-              glyph and the hue together as the highlight moves, so the mark
-              above the headline always belongs to the word currently lit. */}
-          {words.length > 0 && (
-            <span aria-hidden="true" className="grid w-fit">
-              {words.map((word, index) => {
-                const { icon, accent } = HERO_CYCLE[index % HERO_CYCLE.length]
-                return (
-                  <Icon
-                    key={word}
-                    name={icon}
-                    strokeWidth={1.5}
-                    className="hero-cycle-icon size-14 sm:size-16"
-                    style={{
-                      animationDelay: `${index * 3}s`,
-                      color: `var(${accent})`,
-                    }}
-                  />
-                )
-              })}
-            </span>
-          )}
-
-          <h1 className="mt-7">
-            {/* The lead-in is the smaller line above the stack — "delivering
-                ideas that" — and the three words complete the sentence. */}
-            <span className="block font-display text-2xl font-semibold uppercase leading-tight tracking-tight text-white sm:text-3xl">
-              {statement}
-            </span>
-
-            <span className="mt-3 block font-display text-6xl font-extrabold uppercase leading-[0.88] tracking-tighter sm:text-7xl lg:text-[5.5rem]">
-              {words.map((word, index) => (
-                <span
-                  key={word}
-                  className="hero-cycle-word block text-white"
-                  style={{
-                    animationDelay: `${index * 3}s`,
-                    // Read by the keyframes; each word lights in the hue of
-                    // the mark that comes up with it.
-                    ['--hero-accent' as string]: `var(${
-                      HERO_CYCLE[index % HERO_CYCLE.length].accent
-                    })`,
-                  }}
-                >
-                  {word}
-                </span>
-              ))}
-            </span>
-          </h1>
-        </div>
-      </Container>
-
-      {/* The mosaic runs off the bottom and right of the viewport rather than
-          fitting itself to the hero — the tiles reading as a wall that
-          continues past the edge is the point of the composition. */}
-      <div className="relative min-h-104 bg-ink-900 lg:absolute lg:inset-y-0 lg:right-0 lg:w-[46%] lg:min-h-0">
-        <HeroMosaic tiles={tiles} />
-      </div>
-    </section>
-  )
-}
-
-/**
- * The mark and the highlight, one pair per word, in the order the cycle runs
- * them. The reference page moves both together — a purple face over "excite",
- * a red rocket over "motivate" — so it is the pairing being followed here,
- * not the colours on their own.
- *
- * The lamp and gold lead. The screenshots the secretariat sent caught only
- * two of the three states, and gold is the brand accent (§3.2), so the state
- * we could not see stays inside the FBF palette rather than inventing a third
- * borrowed hue; `plum` and `ember` are the reference's own and live nowhere
- * else on the site (see `globals.css`).
- *
- * Positional rather than keyed by word: the three words are editable from the
- * admin panel, so nothing here may depend on what they say.
- */
-const HERO_CYCLE: Array<{ icon: IconName; accent: string }> = [
-  { icon: 'lightbulb', accent: '--color-gold-400' },
-  { icon: 'smile', accent: '--color-plum-500' },
-  { icon: 'rocket', accent: '--color-ember-500' },
-]
-
-// ── 2. Sectors ──────────────────────────────────────────────────────────────
-
-function Sectors({
-  sectors,
-  copy,
-}: {
-  sectors: Array<{
-    id: string
-    slug: string
-    name: string
-    summary: string
-    iconKey: string
-  }>
-  copy: PageCopy
-}) {
-  if (sectors.length === 0) return null
-
-  return (
-    <Section tone="white" size="wide">
-      <SectionHeading
-        eyebrow={copy('sectorsEyebrow', 'Opportunities')}
-        title={copy('sectorsTitle', 'Eight sectors, one investment case')}
-        lead={copy(
-          'sectorsLead',
-          'Each sector page sets out the data, the incentives on offer, and the live opportunities seeking capital.',
-        )}
-      />
-
-      <CardGrid columns={4} className="mt-10">
-        {sectors.map((sector) => (
-          <LinkCard key={sector.id} href={`/learning-hub/sectors/${sector.slug}`}>
-            <span className="flex size-11 items-center justify-center rounded-lg bg-harbour-50 text-harbour-700">
-              <Icon name={sector.iconKey} className="size-5" />
-            </span>
-            <h3 className="mt-4 font-display text-base font-semibold text-ink-950 group-hover:text-forest-700">
-              {sector.name}
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-ink-600">
-              {truncate(sector.summary, 130)}
-            </p>
-          </LinkCard>
-        ))}
-      </CardGrid>
-    </Section>
-  )
-}
-
-// ── 3. Deal Room teaser ─────────────────────────────────────────────────────
-
-function DealRoomTeaser({
-  opportunities,
-  copy,
-}: {
-  copy: PageCopy
-  opportunities: Array<{
-    id: string
-    slug: string
-    title: string
-    summary: string
-    region: string | null
-    currency: string
-    ticketSizeMinMinor: number | null
-    ticketSizeMaxMinor: number | null
-    sector: { name: string } | null
-  }>
-}) {
-  return (
-    <Section tone="harbour" size="wide">
-      <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
-        <div className="lg:col-span-5">
-          <SectionHeading
-            eyebrow={copy('dealRoomEyebrow', 'Deal Room')}
-            title={copy('dealRoomTitle', 'Capital and businesses, in the same room')}
-            lead={copy(
-              'dealRoomLead',
-              'Businesses submit propositions; investors request access. The secretariat matches both sides and schedules the meetings in advance, so the second day of the forum is spent talking rather than looking.',
-            )}
-            inverted
-          />
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <ButtonLink href="/deal-room/apply" variant="accent" size="md">
-              {copy('dealRoomApplyLabel', 'Apply for funding')}
-            </ButtonLink>
-            <ButtonLink
-              href="/deal-room"
-              size="md"
-              className="border border-white/30 bg-white/10 text-white hover:bg-white/20"
-            >
-              {copy('dealRoomBrowseLabel', 'Browse opportunities')}
-            </ButtonLink>
-          </div>
-        </div>
-
-        {opportunities.length > 0 && (
-          <ul className="space-y-4 lg:col-span-7">
-            {opportunities.map((opportunity) => (
-              <li key={opportunity.id}>
-                <Link
-                  href={`/deal-room/${opportunity.slug}`}
-                  className="group block rounded-xl border border-white/15 bg-white/5 p-5 transition hover:border-white/35 hover:bg-white/10"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    {opportunity.sector && (
-                      <Badge className="bg-white/10 text-white ring-white/20">
-                        {opportunity.sector.name}
-                      </Badge>
-                    )}
-                    {opportunity.region && (
-                      <span className="text-xs text-white/60">
-                        {opportunity.region}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="mt-2.5 font-display text-base font-semibold text-white group-hover:text-gold-300">
-                    {opportunity.title}
-                  </h3>
-
-                  <p className="mt-1.5 text-sm leading-relaxed text-white/70">
-                    {truncate(opportunity.summary, 150)}
-                  </p>
-
-                  {opportunity.ticketSizeMinMinor !== null && (
-                    <p className="mt-3 text-sm font-medium text-gold-300">
-                      Seeking{' '}
-                      {formatMoney(
-                        opportunity.ticketSizeMinMinor,
-                        opportunity.currency === 'USD' ? 'USD' : 'SLE',
-                        { compact: true },
-                      )}
-                      {opportunity.ticketSizeMaxMinor
-                        ? ` – ${formatMoney(
-                            opportunity.ticketSizeMaxMinor,
-                            opportunity.currency === 'USD' ? 'USD' : 'SLE',
-                            { compact: true },
-                          )}`
-                        : ''}
-                    </p>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Section>
-  )
-}
-
-// ── 5. Latest news ──────────────────────────────────────────────────────────
-
-function LatestNews({
+function MoreStories({
   articles,
   copy,
+  pictureFor,
+  offset,
 }: {
   copy: PageCopy
+  offset: number
+  pictureFor: (index: number, own: string | null) => string | null
   articles: Array<{
     id: string
     slug: string
@@ -494,11 +180,10 @@ function LatestNews({
   return (
     <Section tone="white" size="wide">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <SectionHeading
-          eyebrow={copy('newsEyebrow', 'News')}
-          title={copy('newsTitle', 'Latest from the forum')}
-          className="mb-0"
-        />
+        <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-ink-950 sm:text-3xl">
+          {copy('newsTitle', 'Latest from the forum')}
+        </h2>
+
         <Link
           href="/blog"
           className="inline-flex items-center gap-1.5 font-medium text-forest-700 hover:text-forest-800 hover:underline"
@@ -508,84 +193,263 @@ function LatestNews({
         </Link>
       </div>
 
-      <CardGrid columns={3} className="mt-8">
-        {articles.map((article) => (
-          <LinkCard
-            key={article.id}
-            href={`/blog/${article.slug}`}
-            className="h-full"
-            padded={false}
-          >
-            {article.heroImageUrl && (
-              // Remote CMS URL — see the note in ui/card.tsx.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={article.heroImageUrl}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-44 w-full rounded-t-xl object-cover"
-              />
-            )}
+      <CardGrid columns={3} className="mt-10">
+        {articles.map((article, index) => {
+          const picture = pictureFor(offset + index, article.heroImageUrl)
 
-            <div className="flex flex-1 flex-col p-5 sm:p-6">
-              <div className="flex flex-wrap items-center gap-2">
-                {article.category && (
-                  <Badge tone="forest">{article.category.name}</Badge>
-                )}
-                {article.publishedAt && (
-                  <time
-                    dateTime={article.publishedAt.toISOString()}
-                    className="text-xs text-ink-500"
-                  >
-                    {formatDateShort(article.publishedAt)}
-                  </time>
-                )}
+          return (
+            <LinkCard
+              key={article.id}
+              href={`/blog/${article.slug}`}
+              className="h-full"
+              padded={false}
+            >
+              {picture && (
+                // Remote CMS URL — see the note in ui/card.tsx.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={picture}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="h-48 w-full object-cover"
+                />
+              )}
+
+              <div className="flex flex-1 flex-col p-5 sm:p-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  {article.category && (
+                    <Badge tone="forest">{article.category.name}</Badge>
+                  )}
+                  {article.publishedAt && (
+                    <time
+                      dateTime={article.publishedAt.toISOString()}
+                      className="text-xs text-ink-500"
+                    >
+                      {formatDateShort(article.publishedAt)}
+                    </time>
+                  )}
+                </div>
+
+                <h3 className="mt-3 font-display text-base font-semibold leading-snug text-ink-950 group-hover:text-forest-700">
+                  {article.title}
+                </h3>
+
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-600">
+                  {truncate(article.excerpt, 140)}
+                </p>
               </div>
-
-              <h3 className="mt-3 font-display text-base font-semibold leading-snug text-ink-950 group-hover:text-forest-700">
-                {article.title}
-              </h3>
-
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-600">
-                {truncate(article.excerpt, 140)}
-              </p>
-
-              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-forest-700">
-                Read more
-                <Icon name="arrowRight" className="size-4" />
-              </span>
-            </div>
-          </LinkCard>
-        ))}
+            </LinkCard>
+          )
+        })}
       </CardGrid>
     </Section>
   )
 }
 
-// ── 6. Newsletter ──────────────────────────────────────────────────────────
+// ── 2. What the forum is for ────────────────────────────────────────────────
 
-function NewsletterBand({
+/**
+ * The mission statement — the reference page's "The Meeting Place for
+ * German-African Trade & Investment", centred and full width.
+ *
+ * The heading and body are the `home.introHeading` and `home.introBody`
+ * settings, which have been in the database since launch and had no screen
+ * rendering them: the band that used to carry them was cut long before this
+ * redesign. They are exactly this section, so the redesign puts them back to
+ * work rather than asking anyone to write the same paragraph twice.
+ *
+ * One word of the heading is set in the accent, and which word that is is the
+ * copywriter's call rather than the layout's — so the value carries asterisks
+ * around it, the convention `home.introHeading` was seeded with.
+ */
+function Mission({
   settings,
   copy,
 }: {
   settings: Record<string, string>
   copy: PageCopy
 }) {
+  const heading = setting(settings, 'home.introHeading')
+  const body = setting(settings, 'home.introBody')
+
+  if (!heading && !body) return null
+
   return (
-    <Section tone="forest">
-      <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-2xl text-white sm:text-3xl">
-          {copy('newsletterTitle', 'Get the monthly briefing')}
+    <Section tone="muted">
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-sm font-semibold uppercase tracking-widest text-forest-700">
+          {copy('missionEyebrow', 'The Freetown Business Forum')}
+        </p>
+
+        <h2 className="mt-5 font-display text-3xl font-bold leading-tight tracking-tight text-ink-950 sm:text-4xl">
+          {emphasise(heading)}
         </h2>
-        <p className="mt-3 text-white/80">
-          {setting(
-            settings,
-            'newsletter.blurb',
-            'Investment opportunities, policy changes and forum news — once a month.',
+
+        <p className="mt-6 text-base leading-relaxed text-ink-700 sm:text-lg">
+          {body}
+        </p>
+      </div>
+    </Section>
+  )
+}
+
+/**
+ * Split a heading on its `*asterisked*` word and set that part in the accent.
+ *
+ * Returns an array of nodes rather than markup through
+ * `dangerouslySetInnerHTML`, because the value comes from a settings row an
+ * editor controls and nothing about a heading justifies handing it a path to
+ * inject markup (§14).
+ */
+function emphasise(heading: string) {
+  // The capture group lands on the odd indices — those are the emphasised
+  // parts; everything else is the plain text between them.
+  return heading
+    .split(/\*([^*]+)\*/)
+    .map((part, index) =>
+      index % 2 === 1 ? (
+        <span key={index} className="text-forest-700">
+          {part}
+        </span>
+      ) : (
+        part
+      ),
+    )
+}
+
+// ── 3. What kind of organisation this is ────────────────────────────────────
+
+/**
+ * The reference page's "A PRIVATE THINK TANK" band: one claim about what the
+ * organisation actually is, set as a wide text block on the dark ground.
+ *
+ * Every word is a CMS block with a fallback, so the secretariat can rewrite
+ * the forum's own description of itself without a deployment — which is the
+ * whole point of a band that exists to say who we are.
+ */
+function WhatWeAre({ copy }: { copy: PageCopy }) {
+  return (
+    <Section tone="ink">
+      <div className="grid gap-8 lg:grid-cols-12 lg:gap-14">
+        <div className="lg:col-span-5">
+          <h2 className="font-display text-3xl font-extrabold uppercase leading-[0.95] tracking-tighter sm:text-4xl">
+            {copy('aboutTitle', 'A convening body, not a chamber')}
+          </h2>
+        </div>
+
+        <div className="space-y-5 text-base leading-relaxed text-white/75 sm:text-lg lg:col-span-7">
+          <p>
+            {copy(
+              'aboutBody',
+              'The Freetown Business Forum exists to put Sierra Leonean enterprise in the same room as the capital, the ministries and the partners that decide whether it grows. It is convened by its members and run by a small secretariat: it does not lobby for a single sector, and it does not speak for government. What it does is get the right people into one room, and make sure the meetings that matter are arranged before anyone arrives.',
+            )}
+          </p>
+          <p>
+            {copy(
+              'aboutBodyTwo',
+              'That work runs all year rather than for three days. Membership carries a listing in the national business directory, access to the Deal Room where propositions are matched to investors, and a standing seat in the dialogue with government.',
+            )}
+          </p>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+// ── 4. Pull quote ───────────────────────────────────────────────────────────
+
+/**
+ * The reference page's quote band: a single claim at display size over a
+ * photograph, with the ground darkened behind it.
+ *
+ * It runs there twice, back to back, with the same words over different
+ * pictures. Once is enough here — the repetition is a quirk of that page's
+ * build rather than a decision worth copying, and a second identical band on a
+ * shorter page reads as a fault.
+ *
+ * The band still works without a photograph: the quote sits on the brand
+ * ground, which is what a site with an empty gallery gets.
+ */
+function PullQuote({ copy, photo }: { copy: PageCopy; photo: string | null }) {
+  return (
+    <section className="relative isolate overflow-hidden bg-forest-900 text-white">
+      {photo && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photo}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 -z-10 size-full object-cover"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 -z-10 bg-forest-950/80"
+          />
+        </>
+      )}
+
+      <Container>
+        <div className="mx-auto max-w-3xl py-20 text-center sm:py-24 lg:py-28">
+          <Icon
+            name="quote"
+            className="mx-auto size-10 text-gold-400"
+            strokeWidth={1.5}
+          />
+
+          <blockquote className="mt-8">
+            <p className="font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl lg:text-4xl">
+              {copy(
+                'quote',
+                'Sierra Leone is not short of opportunity. It is short of the introductions that turn an opportunity into a deal.',
+              )}
+            </p>
+          </blockquote>
+
+          <p className="mt-8 text-sm font-semibold uppercase tracking-widest text-white/60">
+            {copy('quoteAttribution', 'The Freetown Business Forum')}
+          </p>
+        </div>
+      </Container>
+    </section>
+  )
+}
+
+// ── 5. Contact ──────────────────────────────────────────────────────────────
+
+/**
+ * The reference page closes on its own name and a single button, and nothing
+ * else. That restraint is the point of the band: it is the last thing on the
+ * page, so it asks for one action rather than four.
+ */
+function ContactBand({ copy }: { copy: PageCopy }) {
+  return (
+    <Section tone="white">
+      <div className="mx-auto max-w-2xl text-center">
+        <h2 className="font-display text-3xl font-extrabold uppercase tracking-tighter text-ink-950 sm:text-4xl">
+          {copy('contactTitle', 'Contact FBF')}
+        </h2>
+
+        <p className="mt-5 text-base leading-relaxed text-ink-700 sm:text-lg">
+          {copy(
+            'contactLead',
+            'Membership, sponsorship, the Deal Room, or a question about attending — this reaches a person, not a queue.',
           )}
         </p>
-        <NewsletterForm className="mt-6 text-left" source="homepage" />
+
+        <div className="mt-8">
+          <ButtonLink
+            href="/contact"
+            variant="accent"
+            size="lg"
+            className="rounded-none font-semibold uppercase tracking-wider"
+          >
+            {copy('contactLabel', 'Contact us')}
+            <Icon name="arrowRight" className="size-5" />
+          </ButtonLink>
+        </div>
       </div>
     </Section>
   )
@@ -597,6 +461,10 @@ function NewsletterBand({
  * schema.org Event markup, so search engines show the forum's dates and venue
  * directly in results. Rendered as JSON-LD in a script tag — the format Google
  * documents, and the only one that does not require decorating the markup.
+ *
+ * It survives the redesign even though nothing visible on this page now names
+ * the forum's dates: the markup is for the search engine, and the event is
+ * still the thing this organisation is known for.
  */
 function EventStructuredData({
   event,
