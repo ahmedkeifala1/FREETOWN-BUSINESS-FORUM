@@ -5,9 +5,16 @@
  * page is added to the navigation once rather than three times and they cannot
  * drift apart.
  *
- * The six top-level items and their order follow the reference site
- * (londonbusinessforum.com), and so does the shape of the list: it is flat.
- * Every item in the header is a link to a page, and no item opens a menu.
+ * The six top-level items follow the reference site (londonbusinessforum.com),
+ * and so does the shape of the list: it is flat. Every item in the header is a
+ * link to a page, and no item opens a menu.
+ *
+ * **About leads**, at the secretariat's request, ahead of the reference's own
+ * order — which opened on Membership. It also matches germanyafrica.com, the
+ * reference the homepage and the About page now follow, where About is the
+ * first item after the logo. A visitor who has not heard of the forum reads
+ * the nav left to right and wants to know what it is before being asked to
+ * join it.
  *
  *  - Events, Membership, Learning Hub and About are plain links rather than
  *    menus, at the secretariat's request. Their inner pages — the agenda, the
@@ -33,10 +40,10 @@ export type NavItem = {
 }
 
 export const MAIN_NAV: NavItem[] = [
+  { label: 'About', href: '/about' },
   { label: 'Membership', href: '/membership' },
   { label: 'Events', href: '/events' },
   { label: 'Learning Hub', href: '/learning-hub' },
-  { label: 'About', href: '/about' },
   { label: 'Contact Us', href: '/contact' },
   { label: 'Blog', href: '/blog' },
 ]
