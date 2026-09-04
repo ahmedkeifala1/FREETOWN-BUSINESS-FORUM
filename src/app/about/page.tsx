@@ -220,11 +220,13 @@ function Team({
 
   return (
     <Section tone="muted" size="wide">
-      <h2 className="font-display text-3xl font-extrabold uppercase tracking-tighter text-ink-950 sm:text-4xl">
+      <h2 className="text-center font-display text-3xl font-extrabold uppercase tracking-tighter text-ink-950 sm:text-4xl">
         {copy('teamTitle', 'The FBF team')}
       </h2>
 
-      <div aria-hidden="true" className="mt-6 h-1 w-20 bg-gold-500" />
+      {/* The rule is centred with the heading — left under a centred title it
+          reads as a layout fault rather than as a divider. */}
+      <div aria-hidden="true" className="mx-auto mt-6 h-1 w-20 bg-gold-500" />
 
       <CardGrid columns={3} className="mt-10">
         {profiles.map((profile) => (
