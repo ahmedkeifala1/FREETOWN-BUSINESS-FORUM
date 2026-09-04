@@ -1,61 +1,87 @@
 import type { Metadata } from 'next'
 
-import { Breadcrumbs, Container } from '@/components/ui/layout'
-import { cn } from '@/lib/cn'
+import { ButtonLink } from '@/components/ui/button'
+import { Avatar, Card } from '@/components/ui/card'
+import { Icon } from '@/components/ui/icon'
+import { Breadcrumbs, CardGrid, Section } from '@/components/ui/layout'
 import { db } from '@/lib/db'
-import { paragraphs } from '@/lib/format'
-import { getPageBlocks, getSettings, setting } from '@/lib/settings'
+import { LeadershipGroup } from '@/lib/enums'
+import { initials, paragraphs } from '@/lib/format'
+import {
+  getPageBlocks,
+  getPageCopy,
+  getSettings,
+  setting,
+  type PageCopy,
+} from '@/lib/settings'
 
 /**
- * About — vision, mandate and the forum's story (SDR §4.3).
+ * About (SDR §4.3).
  *
- * Two things, in the order the reference site puts them
- * (londonbusinessforum.com/about): a statement of what the forum is and what
- * it is for, and then the institutional history told year by year in
- * alternating split panels. Nothing else. A visitor deciding whether to trust
- * the forum with a registration fee or a membership subscription is really
- * asking "how long has this been going and what has it actually done", and a
- * timeline answers that in a way a fact sheet cannot.
+ * Rebuilt to the composition of the reference page the secretariat gave us
+ * (germanyafrica.com/about), which is three sections and nothing else: what
+ * kind of organisation this is, who runs it, and an invitation to get in
+ * touch. The rhythm is borrowed; the palette, typography and every word are
+ * FBF's own, exactly as on the homepage — see the note there.
  *
- * The reference's About page ends at the last year of its timeline, and so
- * does this one, at the secretariat's request. Two things §4.3 lists are
- * therefore deliberately absent and must not be reinstated as oversights:
+ * What that replaced, and why it is not an oversight:
  *
- *  - the vision and the mandate are not a band of their own. They are the
- *    second and third paragraphs of the opening statement, which is the whole
- *    of the reference's own opening — the prose §4.3 asks for is all present,
- *    it is simply read as one statement rather than two labelled columns;
- *  - there is no CTA band and no onward set of links to leadership, governance
- *    and partners. Those three pages are reached from the About column of the
- *    footer, which carries all four routes on every page of the site.
+ *  - **The milestone timeline is gone.** The page used to tell the forum's
+ *    institutional history year by year in alternating split panels, following
+ *    londonbusinessforum.com. The reference has no equivalent, and only one
+ *    milestone was ever published, so the band was a scaffold holding a single
+ *    entry. The `milestones` table and its rows are untouched, but **nothing
+ *    on the site reads them now** — it never had an admin screen either, so a
+ *    milestone added to the database would go nowhere. Restoring the band is
+ *    the fix, not adding rows.
+ *  - **The team is now on this page.** The reference carries its people here
+ *    rather than on a page of their own. `/about/leadership` still exists and
+ *    still carries the fuller treatment — both groups, split and labelled —
+ *    and the footer still links it. This band is the summary the reference
+ *    puts on About, not a replacement for that page.
  *
- * All copy is read from the database: the opening blocks from the `about` CMS
- * page, the timeline from the `milestones` table (§4.3, FR-01).
+ * The opening blocks come from the `about` CMS page and the people from the
+ * `leadership_profiles` table (FR-01), so both are edited without a deploy.
  */
 
 export const metadata: Metadata = {
   title: 'About us',
   description:
-    'The Freetown Business Forum — what it is for, how it is run, and how it got here.',
+    'The Freetown Business Forum — what it is for, how it is run, and who runs it.',
   alternates: { canonical: '/about' },
 }
 
-type Milestone = {
-  id: string
-  year: string
-  title: string
-  body: string
-  imageUrl: string | null
-  imageAlt: string | null
-}
-
 export default async function AboutPage() {
-  const [settings, blocks, milestones] = await Promise.all([
+  const [settings, blocks, copy, profiles, photos] = await Promise.all([
     getSettings(),
     getPageBlocks('about'),
-    db.milestone.findMany({
-      where: { isPublished: true },
+    getPageCopy('about'),
+    db.leadershipProfile.findMany({
+      where: {
+        isPublished: true,
+        group: { in: [LeadershipGroup.LEADERSHIP, LeadershipGroup.SECRETARIAT] },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        photoUrl: true,
+        bio: true,
+      },
+    }),
+    // One photograph for the opening band. The reference sets an image beside
+    // its statement, and the forum's own record is the only honest source for
+    // one — a stock photograph beside a claim about convening power would undo
+    // the claim (§3.4).
+    db.mediaAsset.findFirst({
+      where: {
+        isPublic: true,
+        kind: 'GALLERY',
+        collection: { slug: 'forum-gallery', isPublished: true },
+      },
       orderBy: { sortOrder: 'asc' },
+      select: { url: true, altText: true },
     }),
   ])
 
@@ -68,45 +94,53 @@ export default async function AboutPage() {
         ]}
       />
 
-      <AboutHeader settings={settings} blocks={blocks} />
-      <Story milestones={milestones} />
+      <WhoWeAre settings={settings} blocks={blocks} copy={copy} photo={photos} />
+      <Team profiles={profiles} copy={copy} />
+      <WorkTogether copy={copy} />
     </>
   )
 }
 
-// ── 1. The opening statement ────────────────────────────────────────────────
+// ── 1. What kind of organisation this is ────────────────────────────────────
 
 /**
- * The headline and the statement under it — the whole of the page before the
- * timeline starts.
+ * The opening statement — the reference's "A Private Think Tank": a heading, a
+ * rule under it, the prose, and a photograph alongside.
  *
- * Three blocks read as one piece of prose. `intro` says what the forum is,
- * `vision` says what it is for, and `mandate` is the list of things that
- * commits it to; they are set at descending weight so the eye is carried down
- * them in that order rather than made to choose between two columns. An
- * unlabelled statement is what the reference does, and labels would be the
- * fact sheet this page is deliberately not.
- *
- * Any of the three may be missing — the blocks are CMS rows and an editor may
- * clear one — so each is rendered only when it has copy, and the intro falls
- * back to the site tagline rather than leaving the page with a bare heading.
+ * Three CMS blocks read as one piece of prose rather than as a labelled fact
+ * sheet. `intro` says what the forum is, `vision` says what it is for, and
+ * `mandate` is what it commits to; they are set at descending weight so the
+ * eye is carried down them in that order. Any of the three may be missing —
+ * they are CMS rows and an editor may clear one — so each renders only when it
+ * has copy, and the intro falls back to the site tagline rather than leaving
+ * the page with a bare heading.
  */
-function AboutHeader({
+function WhoWeAre({
   settings,
   blocks,
+  copy,
+  photo,
 }: {
   settings: Record<string, string>
   blocks: Record<string, string>
+  copy: PageCopy
+  photo: { url: string; altText: string | null } | null
 }) {
   return (
-    <section className="bg-white pt-10 pb-12 sm:pt-14 sm:pb-16">
-      <Container>
-        <div className="max-w-3xl">
-          <h1 className="text-4xl leading-[1.1] text-ink-950 sm:text-5xl lg:text-6xl">
-            About us
+    <Section tone="white" size="wide">
+      <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
+        <div className="lg:col-span-7">
+          <h1 className="font-display text-4xl font-extrabold uppercase leading-[0.95] tracking-tighter text-ink-950 sm:text-5xl">
+            {copy('heroTitle', 'A convening body, not a chamber')}
           </h1>
 
-          <p className="mt-6 text-lg leading-relaxed text-ink-700 sm:text-xl">
+          {/* The rule under the heading is the reference's divider. */}
+          <div
+            aria-hidden="true"
+            className="mt-8 h-1 w-20 bg-gold-500"
+          />
+
+          <p className="mt-8 text-lg leading-relaxed text-ink-700 sm:text-xl">
             {blocks.intro ?? setting(settings, 'site.tagline')}
           </p>
 
@@ -124,126 +158,140 @@ function AboutHeader({
             </div>
           )}
         </div>
-      </Container>
-    </section>
-  )
-}
 
-// ── 2. Our story ────────────────────────────────────────────────────────────
-
-function Story({ milestones }: { milestones: Milestone[] }) {
-  if (milestones.length === 0) return null
-
-  return (
-    <section aria-labelledby="our-story">
-      <Container className="pt-12 sm:pt-16 lg:pt-20">
-        <div className="max-w-3xl border-t border-ink-200 pt-10">
-          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-forest-700">
-            Our story
-          </p>
-          <h2 id="our-story" className="text-2xl sm:text-3xl lg:text-4xl">
-            How the forum got here
-          </h2>
-        </div>
-      </Container>
-
-      <ol>
-        {milestones.map((milestone, index) => (
-          <StoryPanel
-            key={milestone.id}
-            milestone={milestone}
-            /*
-             * The alternation is decorative, and it is driven by position in
-             * the list rather than stored on the row — the secretariat should
-             * be able to reorder or delete a milestone without the layout
-             * developing two images in a row.
-             */
-            flipped={index % 2 === 1}
-            tone={index % 2 === 1 ? 'muted' : 'white'}
-          />
-        ))}
-      </ol>
-    </section>
-  )
-}
-
-function StoryPanel({
-  milestone,
-  flipped,
-  tone,
-}: {
-  milestone: Milestone
-  flipped: boolean
-  tone: 'white' | 'muted'
-}) {
-  return (
-    <li className={tone === 'muted' ? 'bg-ink-50' : 'bg-white'}>
-      <Container className="py-10 sm:py-14">
-        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
-          <div className={cn(flipped && 'lg:order-2')}>
+        {photo && (
+          <div className="lg:col-span-5">
             {/*
-              Year and title are one heading rather than two elements, so a
-              screen reader announces "2019, The first Deal Room" as a single
-              landmark and the outline of the page stays flat.
+              Plain `<img>` rather than next/image, as everywhere the address
+              comes from the media library: it may point at any host, including
+              the blob store, and the optimiser refuses a domain not configured
+              ahead of time. The alt text is the secretariat's own where they
+              wrote one; without it the photograph is decorative and the prose
+              beside it is the content.
             */}
-            <h3>
-              <span className="block font-display text-3xl font-bold text-forest-600 sm:text-4xl">
-                {milestone.year}
-              </span>
-              <span className="mt-2 block text-xl text-ink-950 sm:text-2xl">
-                {milestone.title}
-              </span>
-            </h3>
-
-            <div className="mt-5 space-y-4 leading-relaxed text-ink-700">
-              {paragraphs(milestone.body).map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photo.url}
+              alt={photo.altText ?? ''}
+              loading="lazy"
+              decoding="async"
+              className="h-full max-h-128 w-full object-cover"
+            />
           </div>
-
-          <div className={cn(flipped && 'lg:order-1')}>
-            <StoryImage milestone={milestone} />
-          </div>
-        </div>
-      </Container>
-    </li>
+        )}
+      </div>
+    </Section>
   )
 }
+
+// ── 2. The people ───────────────────────────────────────────────────────────
 
 /**
- * The panel image, or a placeholder standing in for one.
+ * The team, as the reference puts it on this page: a heading, a rule, then one
+ * card per person carrying their photograph, their name, their role and their
+ * biography.
  *
- * The brief calls for authentic Sierra Leonean photography (§3.4) and the
- * secretariat's image library is not yet licensed. A stock photograph would be
- * both wrong and a needless download, and a broken image icon looks unfinished
- * — so an untitled milestone gets a tinted panel carrying its own year. Setting
- * `imageUrl` on the row replaces it with no code change.
+ * The reference runs long biographies. Ours are shown when they exist and the
+ * card simply closes after the role when they do not, which is the state the
+ * site is in — no profile on file carries a biography or a photograph yet, so
+ * every card currently shows initials on brand colour and two lines. That is
+ * honest rather than padded, and both fields are editable, so the band fills
+ * out as the secretariat writes them.
+ *
+ * Both groups are shown together and unlabelled here. The split between the
+ * officers and the secretariat is a real distinction and it is made properly
+ * on `/about/leadership`; on this page it would be two headings over five
+ * people.
  */
-function StoryImage({ milestone }: { milestone: Milestone }) {
-  if (milestone.imageUrl) {
-    return (
-      // CMS image URLs are arbitrary remote hosts, which next/image would need
-      // allow-listed in next.config.ts — see the note in ui/card.tsx.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={milestone.imageUrl}
-        alt={milestone.imageAlt ?? ''}
-        loading="lazy"
-        decoding="async"
-        className="aspect-[4/3] w-full rounded-2xl bg-ink-100 object-cover shadow-sm"
-      />
-    )
-  }
+function Team({
+  profiles,
+  copy,
+}: {
+  copy: PageCopy
+  profiles: Array<{
+    id: string
+    name: string
+    role: string
+    photoUrl: string | null
+    bio: string | null
+  }>
+}) {
+  if (profiles.length === 0) return null
 
   return (
-    <div
-      aria-hidden="true"
-      className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-2xl bg-forest-900 bg-[radial-gradient(ellipse_at_top_left,var(--color-forest-700),transparent_60%),radial-gradient(ellipse_at_bottom_right,var(--color-harbour-800),transparent_60%)]"
-    >
-      <span className="font-display text-5xl font-bold text-white/15 sm:text-7xl">
-        {milestone.year}
-      </span>
-    </div>
+    <Section tone="muted" size="wide">
+      <h2 className="font-display text-3xl font-extrabold uppercase tracking-tighter text-ink-950 sm:text-4xl">
+        {copy('teamTitle', 'The FBF team')}
+      </h2>
+
+      <div aria-hidden="true" className="mt-6 h-1 w-20 bg-gold-500" />
+
+      <CardGrid columns={3} className="mt-10">
+        {profiles.map((profile) => (
+          <Card key={profile.id} className="h-full">
+            <div className="flex items-start gap-4">
+              <Avatar
+                src={profile.photoUrl}
+                name={profile.name}
+                initials={initials(profile.name)}
+                size="md"
+              />
+
+              <div className="min-w-0">
+                <h3 className="font-display text-base font-semibold leading-snug text-ink-950">
+                  {profile.name}
+                </h3>
+                <p className="mt-1 text-sm text-forest-700">{profile.role}</p>
+              </div>
+            </div>
+
+            {profile.bio && (
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-ink-600">
+                {paragraphs(profile.bio).map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+            )}
+          </Card>
+        ))}
+      </CardGrid>
+    </Section>
+  )
+}
+
+// ── 3. Get in touch ─────────────────────────────────────────────────────────
+
+/**
+ * The reference closes About on two words and a button, and nothing else.
+ * That restraint is the point of the band.
+ */
+function WorkTogether({ copy }: { copy: PageCopy }) {
+  return (
+    <Section tone="ink">
+      <div className="mx-auto max-w-2xl text-center">
+        <h2 className="font-display text-3xl font-extrabold uppercase tracking-tighter sm:text-4xl">
+          {copy('ctaTitle', 'Let’s work together')}
+        </h2>
+
+        <p className="mt-5 text-base leading-relaxed text-white/75 sm:text-lg">
+          {copy(
+            'ctaLead',
+            'Membership, partnership, sponsorship, or a question about the forum — this reaches a person, not a queue.',
+          )}
+        </p>
+
+        <div className="mt-8">
+          <ButtonLink
+            href="/contact"
+            variant="accent"
+            size="lg"
+            className="rounded-none font-semibold uppercase tracking-wider"
+          >
+            {copy('ctaLabel', 'Get in touch')}
+            <Icon name="arrowRight" className="size-5" />
+          </ButtonLink>
+        </div>
+      </div>
+    </Section>
   )
 }

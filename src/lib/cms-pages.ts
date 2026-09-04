@@ -158,6 +158,22 @@ export const CMS_PAGES: CmsPage[] = [
         kind: 'prose',
         rows: 4,
       },
+      { key: 'heroTitle', label: 'Page heading', kind: 'line', max: 90 },
+      {
+        key: 'teamTitle',
+        label: 'The team — heading',
+        hint: 'The people themselves are edited under Leadership in the database; their photographs and biographies fill this band out.',
+        kind: 'line',
+        max: 90,
+      },
+      { key: 'ctaTitle', label: 'Closing band — heading', kind: 'line', max: 90 },
+      {
+        key: 'ctaLead',
+        label: 'Closing band — standfirst',
+        kind: 'prose',
+        rows: 2,
+      },
+      { key: 'ctaLabel', label: 'Closing band — button', kind: 'line', max: 40 },
     ],
   },
   {
