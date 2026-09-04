@@ -128,14 +128,6 @@ export const CMS_PAGES: CmsPage[] = [
         kind: 'line',
         max: 40,
       },
-      { key: 'membershipEyebrow', label: 'Membership — eyebrow', kind: 'line', max: 40 },
-      { key: 'membershipTitle', label: 'Membership — heading', kind: 'line', max: 90 },
-      {
-        key: 'membershipLead',
-        label: 'Membership — standfirst',
-        kind: 'prose',
-        rows: 3,
-      },
       { key: 'newsEyebrow', label: 'News — eyebrow', kind: 'line', max: 40 },
       { key: 'newsTitle', label: 'News — heading', kind: 'line', max: 90 },
       {

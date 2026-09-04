@@ -2,7 +2,6 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 import { HeroMosaic, type MosaicTile } from '@/components/site/hero-mosaic'
-import { MembershipTabs, type MembershipTab } from '@/components/site/membership-tabs'
 import { NewsletterForm } from '@/components/site/newsletter-form'
 import { ButtonLink } from '@/components/ui/button'
 import { Badge, LinkCard } from '@/components/ui/card'
@@ -14,11 +13,7 @@ import {
   SectionHeading,
 } from '@/components/ui/layout'
 import { db } from '@/lib/db'
-import {
-  formatDateShort,
-  parseJsonColumn,
-  truncate,
-} from '@/lib/format'
+import { formatDateShort, truncate } from '@/lib/format'
 import { formatMoney } from '@/lib/money'
 import {
   getCurrentEvent,
@@ -33,7 +28,7 @@ import {
  * Homepage (SDR §4.2).
  *
  * Every band on this page is read from the database — the hero, the sector
- * grid, the Deal Room and membership teasers and the news cards (FR-01) — and
+ * grid, the Deal Room teaser and the news cards (FR-01) — and
  * since the page editor gained the `home` entry, so is the wording around
  * them. The section headings below are still written in this file, but as
  * *fallbacks*: `copy(key, fallback)` prefers what the secretariat has written
@@ -42,27 +37,29 @@ import {
  *
  * The layout follows the reference the secretariat gave us
  * (londonbusinessforum.com): a statement hero with a cycling phrase, then the
- * routes into the site, with membership as tabs rather than four price cards.
- * The palette, typography and section list stay as specified in §3.2/§4.2 —
- * this is that page's rhythm, not its brand.
+ * routes into the site. The palette, typography and section list stay as
+ * specified in §3.2/§4.2 — this is that page's rhythm, not its brand.
  *
- * The secretariat has since cut seven of the bands §4.2 lists: the six that
+ * The secretariat has since cut eight of the bands §4.2 lists: the six that
  * ran between the hero and the sector grid — the endorsements, the statement
  * and its stat counters, the programme highlights, the film band, the speaker
- * wall and "who should attend" — and the sponsor strip that closed the page.
- * They are not hidden behind a flag or an empty-state guard: a band nobody
- * asked to keep is better deleted than left switched off, and the material
- * they showed all still has its own page (`/events/agenda`,
- * `/events/speakers`, `/events/sponsors`, `/learning-hub/recordings`,
- * `/about`), which the header and the teasers below already reach. The
- * section numbering below keeps its gaps closed, so what is left reads in
- * order.
+ * wall and "who should attend" — the sponsor strip that closed the page, and
+ * the membership teaser that stood between the Deal Room and the news. They
+ * are not hidden behind a flag or an empty-state guard: a band nobody asked to
+ * keep is better deleted than left switched off, and the material they showed
+ * all still has its own page (`/events/agenda`, `/events/speakers`,
+ * `/events/sponsors`, `/learning-hub/recordings`, `/membership`, `/about`),
+ * which the header and the teasers below already reach. The section numbering
+ * below keeps its gaps closed, so what is left reads in order.
  *
- * Note that the sponsor strip took the page's only "Become a sponsor" call to
- * action with it — including the one it showed in place of the strip when an
- * edition had no sponsors signed yet. `/events/sponsors` is now reached from
- * the footer's Events column, or from `/events` itself; the main nav has no
- * direct entry for it.
+ * Two of those took the page's only route into their subject with them. The
+ * sponsor strip carried the only "Become a sponsor" call to action — including
+ * the one it showed in place of the strip when an edition had no sponsors
+ * signed yet — and the membership teaser carried the only prices and the only
+ * "Become a member" button. Both subjects are now reached from the header nav
+ * and the footer rather than from this page. Nothing on the homepage quotes a
+ * membership rate any more, which is the point: the prices live on
+ * `/membership` and `/membership/tiers`, in one place.
  *
  * The queries run in two `Promise.all` batches rather than sequentially.
  * Awaiting them in series would add each round-trip to time-to-first-byte,
@@ -81,13 +78,7 @@ export default async function HomePage() {
     getPageCopy('home'),
   ])
 
-  const [
-    galleryPhotos,
-    articles,
-    tiers,
-    opportunities,
-    videos,
-  ] = await Promise.all([
+  const [galleryPhotos, articles, opportunities, videos] = await Promise.all([
     // The hero mosaic. The forum's own photographs, in the order the
     // secretariat set on the collection — twelve is more than the wall shows
     // at any viewport, so removing one never opens a hole in the composition.
@@ -106,10 +97,6 @@ export default async function HomePage() {
       orderBy: { publishedAt: 'desc' },
       take: 3,
       include: { category: { select: { name: true, slug: true } } },
-    }),
-    db.membershipTier.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
     }),
     db.opportunity.findMany({
       where: { isPublished: true },
@@ -147,14 +134,9 @@ export default async function HomePage() {
     <>
       {event && <EventStructuredData event={event} />}
 
-      <Hero
-        settings={settings}
-        event={event}
-        tiles={buildMosaic(galleryPhotos, videos)}
-      />
+      <Hero settings={settings} tiles={buildMosaic(galleryPhotos, videos)} />
       <Sectors sectors={sectors} copy={copy} />
       <DealRoomTeaser opportunities={opportunities} copy={copy} />
-      <MembershipTeaser tiers={tiers} copy={copy} />
       <LatestNews articles={articles} copy={copy} />
       <NewsletterBand settings={settings} copy={copy} />
     </>
@@ -222,9 +204,16 @@ function buildMosaic(
  *
  * Near-black ground; a lead-in line and three stacked words at display size
  * with the last in the accent, which is the whole left half. The right half is
- * a colour panel carrying a crawl of sector names, with the strongest
- * endorsement laid over it — proof sits inside the hero rather than waiting in
- * a band below the fold.
+ * the mosaic wall.
+ *
+ * The standfirst under the headline — the forum's tagline, or the event's own
+ * where it had one — has been cut at the secretariat's request. The headline
+ * carries the fold on its own now, so nothing was moved up to fill the space:
+ * the words are the statement, and a sentence explaining them underneath was
+ * what the composition was doing without. The tagline itself is untouched and
+ * still reads in the footer and in the page metadata; only this one printing
+ * of it is gone. That is also why the hero no longer takes the current event
+ * at all — the standfirst was the only thing it read from it.
  *
  * The panel is absolutely positioned on `lg` so it reaches the right edge of
  * the viewport without any `100vw` arithmetic, which overflows by the width of
@@ -233,11 +222,9 @@ function buildMosaic(
  */
 function Hero({
   settings,
-  event,
   tiles,
 }: {
   settings: Record<string, string>
-  event: Awaited<ReturnType<typeof getCurrentEvent>>
   tiles: MosaicTile[]
 }) {
   const statement = setting(settings, 'home.heroStatement')
@@ -301,11 +288,6 @@ function Hero({
               ))}
             </span>
           </h1>
-
-          <p className="mt-8 max-w-lg text-base leading-relaxed text-white/75 sm:text-lg">
-            {event?.tagline ?? setting(settings, 'site.tagline')}
-          </p>
-
         </div>
       </Container>
 
@@ -486,55 +468,6 @@ function DealRoomTeaser({
           </ul>
         )}
       </div>
-    </Section>
-  )
-}
-
-// ── 4. Membership teaser ────────────────────────────────────────────────────
-
-function MembershipTeaser({
-  tiers,
-  copy,
-}: {
-  copy: PageCopy
-  tiers: Array<{
-    id: string
-    slug: string
-    name: string
-    strapline: string | null
-    priceMinor: number
-    currency: string
-    featuresJson: string
-  }>
-}) {
-  if (tiers.length === 0) return null
-
-  const tabs: MembershipTab[] = tiers.map((tier) => ({
-    id: tier.id,
-    slug: tier.slug,
-    name: tier.name,
-    strapline: tier.strapline,
-    price: formatMoney(
-      tier.priceMinor,
-      tier.currency === 'USD' ? 'USD' : 'SLE',
-      { compact: true },
-    ),
-    features: parseJsonColumn<string[]>(tier.featuresJson, []),
-  }))
-
-  return (
-    <Section tone="muted" size="wide">
-      <SectionHeading
-        eyebrow={copy('membershipEyebrow', 'Membership')}
-        title={copy('membershipTitle', 'Join FBF')}
-        lead={copy(
-          'membershipLead',
-          'Membership carries a directory listing, member rates on forum registration, access to the Deal Room, and a standing seat in the dialogue with government.',
-        )}
-        align="center"
-      />
-
-      <MembershipTabs tabs={tabs} />
     </Section>
   )
 }
