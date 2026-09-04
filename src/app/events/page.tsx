@@ -16,14 +16,12 @@ import {
 import { db } from '@/lib/db'
 import { SESSION_TYPE_LABELS, type SessionType } from '@/lib/enums'
 import {
-  formatDateRange,
   formatDuration,
   formatTime,
   formatWeekday,
   formatWeekdayFull,
   initials,
   parseJsonColumn,
-  pluralise,
   truncate,
 } from '@/lib/format'
 import { getCurrentEvent, getPageCopy } from '@/lib/settings'
@@ -79,7 +77,7 @@ export default async function EventsPage({
     getPageCopy('events'),
   ])
 
-  const [sessions, speakerCount, speakerPhotos, galleryPhotos] = await Promise.all([
+  const [sessions, speakerPhotos, galleryPhotos] = await Promise.all([
     event
       ? db.eventSession.findMany({
           where: { eventId: event.id, isPublished: true },
@@ -105,7 +103,6 @@ export default async function EventsPage({
           },
         })
       : Promise.resolve([]),
-    db.speaker.count({ where: { isPublished: true } }),
     // The hero wall. Faces first, as on the reference site, whose events hero
     // is a grid of the speakers it is selling — featured ones lead, because
     // the first tiles are the ones read on a phone before the wall scrolls.
@@ -192,6 +189,23 @@ export default async function EventsPage({
         The eyebrow is white here rather than the gold every other PageHero
         uses. Gold is already doing two jobs in this band, the glyph and the
         emphasised half of the headline, and a third would flatten both.
+
+        The secretariat has since cut four things from this band and the strip
+        under it: the headline's gold half, which counted the published
+        sessions and days; the standfirst naming the forum, its theme, its
+        venue and its dates; the two calls to action; and the facts strip that
+        gave the dates, venue, expected delegates and confirmed speaker count.
+        What they had in common is that they all quoted a figure or a detail
+        about an edition that is still being assembled.
+
+        The headline keeps its first half and drops the "across" that handed
+        off to the count, so it now reads as a whole sentence rather than as
+        one waiting for a number. Gold is therefore doing one job in this band,
+        not two — the note above is kept because it is still the reason the
+        eyebrow is white.
+
+        The dates and venue are not lost: they are on `/events/venue`, and the
+        agenda carries the day count for anyone reading the programme itself.
       */}
       <section className="relative isolate overflow-hidden bg-ink-950 text-white">
         <Container size="wide">
@@ -210,38 +224,9 @@ export default async function EventsPage({
             <h1 className="mt-6 font-display text-4xl font-extrabold uppercase leading-[0.95] tracking-tighter sm:text-5xl lg:text-6xl">
               {copy(
                 'heroTitle',
-                'Meet the people building Sierra Leone’s economy across',
-              )}{' '}
-              <span className="text-gold-400">
-                {sessions.length > 0
-                  ? `${sessions.length} ${pluralise(sessions.length, 'session')} over ${days.length} ${pluralise(days.length, 'day')}`
-                  : copy('heroAccentFallback', 'three days in Freetown')}
-              </span>
-              .
+                'Meet the people building Sierra Leone’s economy.',
+              )}
             </h1>
-
-            <p className="mt-8 max-w-lg text-base leading-relaxed text-white/75 sm:text-lg">
-              {event.name} — {event.theme} — at {event.venueName},{' '}
-              {event.city}, {formatDateRange(event.startDate, event.endDate)}.
-            </p>
-
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <ButtonLink
-                href="#sessions"
-                variant="accent"
-                size="lg"
-                className="rounded-none font-semibold uppercase tracking-wider"
-              >
-                Upcoming sessions
-              </ButtonLink>
-              <ButtonLink
-                href="/membership"
-                size="lg"
-                className="rounded-none border border-white/40 bg-transparent font-semibold uppercase tracking-wider text-white hover:bg-white/10 active:bg-white/15"
-              >
-                Find out about membership
-              </ButtonLink>
-            </div>
           </div>
         </Container>
 
@@ -422,23 +407,6 @@ export default async function EventsPage({
         )}
       </Section>
 
-      {/* Facts strip — the four things every enquiry asks first. */}
-      <Section tone="muted" size="wide">
-        <dl className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <Fact label="Dates" value={formatDateRange(event.startDate, event.endDate)} />
-          <Fact label="Venue" value={`${event.venueName}, ${event.city}`} />
-          <Fact
-            label="Expected"
-            value={
-              event.expectedDelegates
-                ? `${event.expectedDelegates.toLocaleString('en-GB')} delegates`
-                : 'Open to all'
-            }
-          />
-          <Fact label="Speakers" value={`${speakerCount} confirmed`} />
-        </dl>
-      </Section>
-
       {event.description && (
         <Section tone="white" size="wide">
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
@@ -524,18 +492,5 @@ function FilterOption({
         {selected && <Icon name="check" className="size-4 text-forest-600" />}
       </Link>
     </li>
-  )
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-t-2 border-ink-950 pt-5">
-      <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-        {label}
-      </dt>
-      <dd className="mt-2 font-display text-lg font-semibold leading-snug text-ink-950">
-        {value}
-      </dd>
-    </div>
   )
 }

@@ -908,13 +908,6 @@ export const CMS_PAGES: CmsPage[] = [
         max: 120,
       },
       {
-        key: 'heroAccentFallback',
-        label: 'Hero headline — when no sessions are published',
-        hint: 'Stands in for the session count until the programme goes up.',
-        kind: 'line',
-        max: 60,
-      },
-      {
         key: 'agendaLinkLabel',
         label: 'Link to the full agenda',
         kind: 'line',
