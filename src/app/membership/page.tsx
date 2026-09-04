@@ -3,10 +3,6 @@ import type { Metadata } from 'next'
 
 import { Faq, type FaqItem } from '@/components/site/faq'
 import { HeroMosaic, type MosaicTile } from '@/components/site/hero-mosaic'
-import {
-  MembershipTabs,
-  type MembershipTab,
-} from '@/components/site/membership-tabs'
 import { SessionCard, type SessionCardSession } from '@/components/site/session-card'
 import { ButtonLink } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
@@ -140,17 +136,6 @@ export default async function MembershipPage() {
   const bandPhotos = photos.slice(-3)
   const heroPhotos = photos.slice(0, Math.max(0, photos.length - 3))
 
-  const tabs: MembershipTab[] = tiers.map((tier) => ({
-    id: tier.id,
-    slug: tier.slug,
-    name: tier.name,
-    strapline: tier.strapline,
-    price: formatMoney(tier.priceMinor, tier.currency === 'USD' ? 'USD' : 'SLE', {
-      compact: true,
-    }),
-    features: parseJsonColumn<string[]>(tier.featuresJson, []),
-  }))
-
   return (
     <>
       {/* The reference page has no breadcrumb. Ours keeps one: it is the
@@ -174,14 +159,20 @@ export default async function MembershipPage() {
 
       <AccessBand items={access} photos={bandPhotos} copy={copy} />
 
+      {/*
+        The introduction. This band used to carry the tier tabs and their price
+        card as well; both were cut at the secretariat's request, and the
+        prices now live only on `/membership/tiers`. The band itself stays
+        because `intro` is printed nowhere else — removing the panel should not
+        take the page's own description of membership with it.
+      */}
       <Section tone="white" size="wide">
         <SectionHeading
-          eyebrow={copy('tiersEyebrow', 'What you get')}
-          title={copy('tiersTitle', 'Four tiers, one membership')}
+          eyebrow={copy('introEyebrow', 'What you get')}
+          title={copy('introTitle', 'What membership is')}
           lead={blocks.intro}
           align="center"
         />
-        <MembershipTabs tabs={tabs} />
       </Section>
 
       <MemberStrip listings={listings} copy={copy} />
@@ -318,13 +309,6 @@ function MembershipHero({
             >
               Join FBF
               <Icon name="arrowRight" className="size-5" />
-            </ButtonLink>
-            <ButtonLink
-              href="/membership/tiers"
-              size="lg"
-              className="rounded-none border border-white/40 bg-transparent font-semibold uppercase tracking-wider text-white hover:bg-white/10 active:bg-white/15"
-            >
-              Tiers &amp; pricing
             </ButtonLink>
           </div>
         </div>

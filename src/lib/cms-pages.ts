@@ -355,14 +355,14 @@ export const CMS_PAGES: CmsPage[] = [
         max: 90,
       },
       {
-        key: 'tiersEyebrow',
-        label: 'The tiers — eyebrow',
+        key: 'introEyebrow',
+        label: 'Introduction — eyebrow',
         kind: 'line',
         max: 40,
       },
       {
-        key: 'tiersTitle',
-        label: 'The tiers — heading',
+        key: 'introTitle',
+        label: 'Introduction — heading',
         kind: 'line',
         max: 90,
       },
