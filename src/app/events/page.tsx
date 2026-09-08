@@ -21,6 +21,7 @@ import {
   formatWeekday,
   formatWeekdayFull,
   initials,
+  paragraphs,
   parseJsonColumn,
   truncate,
 } from '@/lib/format'
@@ -53,6 +54,20 @@ import { getCurrentEvent, getPageCopy } from '@/lib/settings'
  * stay 24-hour, because `format.ts` fixes that app-wide to keep the server and
  * the browser rendering the same string.
  */
+
+/**
+ * The proposed SME seminar, as the secretariat supplied it.
+ *
+ * Held here rather than inline in the band because it is three paragraphs and
+ * would bury the markup around it. It is a fallback like every other on this
+ * page — the `seminarBody` block overrides it, so the secretariat rewrites the
+ * proposal in the page editor rather than here.
+ */
+const SEMINAR_BODY = [
+  'The Freetown Business Forum is proposing a two-day SME partnership seminar in Freetown. This event brings together 250 small and medium enterprise (SME) owners, private-sector experts and government officials to strengthen business networks and foster collaborative ventures. Day 1 “Connect & Collaborate” will feature networking sessions and panels to match startups and SMEs with potential partners. Day 2 “The Power of Partnerships” will focus on joint ventures, B2B matchmaking, and building lasting business alliances. This aligns with national economic priorities: SMEs are regarded as “critical” for diversifying Sierra Leone’s economy, and the Ministry of Trade emphasizes private-sector growth and trade promotion to drive sustainable development.',
+  'Outcomes will include new partnerships formed, enhanced SME capacities, and actionable policy feedback to support Sierra Leone’s industrial and trade sectors.',
+  'This seminar directly supports those aims by creating a platform for SMEs to engage with government trade initiatives and with each other. It leverages national momentum: for example, capacity-building programs have already expanded SMEs’ access to markets and partnerships. Our Forum will amplify these efforts by focusing on relationship-building and practical business training, thus advancing both trade-sector and tourism-sector growth.',
+].join('\n\n')
 
 export const metadata: Metadata = {
   title: 'Events',
@@ -439,6 +454,47 @@ export default async function EventsPage({
           </div>
         </Section>
       )}
+
+      {/*
+        A proposed seminar, distinct from the forum above it.
+
+        It is a *proposal* — the secretariat's own word — with no dates, venue
+        or programme settled, so it is deliberately not an `Event` row. A row
+        would give it a registration flow, a session list and a place in the
+        countdown, all of which would claim more than is true; and making it
+        the current event would take the 2027 forum off the site. It is copy
+        until it is scheduled, and copy is what this band renders.
+
+        No figures are set as tiles. The facts strip that used to sit on this
+        page was cut for quoting numbers about an edition still being
+        assembled, and a "250 delegates" tile under a seminar with no date
+        would be the same mistake with a different subject. The 250 is in the
+        prose, where the sentence around it says it is a plan.
+      */}
+      <Section tone="muted" size="wide">
+        <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-5">
+            <SectionHeading
+              eyebrow={copy('seminarEyebrow', 'In development')}
+              title={copy(
+                'seminarTitle',
+                '2-Day “Connect & Collaborate / Power of Partnerships” SME Seminar',
+              )}
+            />
+          </div>
+
+          <div className="space-y-5 text-lg leading-relaxed text-ink-800 lg:col-span-7">
+            {paragraphs(
+              copy(
+                'seminarBody',
+                SEMINAR_BODY,
+              ),
+            ).map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+        </div>
+      </Section>
 
       <CtaBand
         title={copy('ctaTitle', 'Register for the forum')}

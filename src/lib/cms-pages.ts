@@ -927,6 +927,25 @@ export const CMS_PAGES: CmsPage[] = [
         max: 40,
       },
       {
+        key: 'seminarEyebrow',
+        label: 'SME seminar — eyebrow',
+        kind: 'line',
+        max: 40,
+      },
+      {
+        key: 'seminarTitle',
+        label: 'SME seminar — heading',
+        kind: 'line',
+        max: 120,
+      },
+      {
+        key: 'seminarBody',
+        label: 'SME seminar — description',
+        hint: 'Separate paragraphs with a blank line. Leave blank to keep the proposal written into the page.',
+        kind: 'prose',
+        rows: 12,
+      },
+      {
         key: 'themeEyebrow',
         label: 'The theme — eyebrow',
         kind: 'line',
