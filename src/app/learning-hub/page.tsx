@@ -16,8 +16,8 @@ import {
 } from '@/components/ui/layout'
 import { db } from '@/lib/db'
 import { MediaKind } from '@/lib/enums'
-import { pluralise, truncate } from '@/lib/format'
-import { getPageCopy, getSectors } from '@/lib/settings'
+import { paragraphs, parseJsonColumn, pluralise, truncate } from '@/lib/format'
+import { getPageBlocks, getPageCopy, getSectors } from '@/lib/settings'
 
 /**
  * Learning Hub — laid out like the reference site's
@@ -42,6 +42,36 @@ import { getPageCopy, getSectors } from '@/lib/settings'
  *    against itself, and this one is still being catalogued.
  */
 
+/**
+ * The training programmes the forum has proposed but not yet run.
+ *
+ * A repeating block, so the secretariat adds a third without a deploy — the
+ * `trainings` block overrides this list entirely when it has one. This is the
+ * fallback, which is why the two the forum has proposed are written here
+ * rather than seeded: an unwritten block leaves the band reading as it does
+ * today rather than emptying it (see `getPageCopy` in lib/settings).
+ *
+ * Each is a *proposal*. None has dates, a cohort or an application form, so
+ * none is an event or a bookable course — the band says what the forum intends
+ * to run and asks the reader to get in touch, and nothing on it implies a
+ * place can be reserved.
+ */
+type ProposedTraining = { title: string; body: string }
+
+const PROPOSED_TRAINING: ProposedTraining[] = [
+  {
+    title: 'Youth and Women Entrepreneurship Incubator Programme',
+    body: [
+      'Sierra Leone’s rapidly growing youth population, roughly 60% under age 35, presents both a challenge and an opportunity. Many young people lack formal employment prospects, and women face additional barriers in business. The Freetown Business Forum proposes a 6-month incubator programme with the aim of empowering 300 young entrepreneurs (180 women, 120 men) with training, mentorship, and seed funding to launch agribusiness and tech ventures. Participants will develop business plans in agro-tech and digital fields, refine their ideas through expert coaching, and pitch for seed grants to start their enterprises. The project aligns with national goals of trade, industry and human capital development, and will drive inclusive growth by creating new jobs and sustainable startups.',
+      'High youth unemployment and underemployment are fueling poverty and social strain. Many young Sierra Leoneans lack the business skills, mentorship, and startup capital needed to create successful ventures. Women entrepreneurs face even greater obstacles: despite their active participation, they often remain at subsistence-level enterprises due to limited access to finance, business training and networks. Existing incubation and support services are scarce and fragmented. This gap means innovative agribusiness and tech ideas go unfunded and untested, and the potential to transform traditional agriculture or digital opportunities is lost. Without intervention, the status quo will perpetuate economic inequality and brain drain. Our incubator aims to address these problems by equipping youth and women with the tools, funding and support to start viable businesses in strategic sectors.',
+    ].join('\n\n'),
+  },
+  {
+    title: 'Rural Business Empowerment Programme',
+    body: 'Sierra Leone’s economy is predominantly agrarian: agriculture accounts for over half of GDP, and rural women and youth make up the backbone of the sector. In fact, studies report that rural women comprise roughly 70% of the country’s agricultural labour force. Yet decades of underinvestment, poor infrastructure and persistent gender biases mean that productivity and incomes remain very low. The Freetown Business Forum proposes a one-year Rural Business Empowerment Programme in Bo, Port Loko and Kono districts to tackle these challenges. This project will directly empower 300 rural women and young farmers with practical training, improved access to credit, and agricultural equipment. Its goals are to raise farm productivity, increase household incomes, and create sustainable agribusinesses. The programme aligns with national priorities: Sierra Leone’s Feed Salone strategy explicitly names “Empowering Women and Youth” as a core pillar and supports government targets for job creation. By partnering with international donors focused on agriculture and gender empowerment, the FBF will leverage proven approaches — small grants and cooperative training among them — to achieve measurable impacts in food security and livelihood improvement.',
+  },
+]
+
 export const metadata: Metadata = {
   title: 'Learning Hub',
   description:
@@ -60,6 +90,7 @@ export default async function LearningHubPage() {
     videoThumbnails,
     galleryPhotos,
     copy,
+    blocks,
   ] = await Promise.all([
     getSectors(),
     db.mediaCollection.findMany({
@@ -115,7 +146,16 @@ export default async function LearningHubPage() {
       select: { id: true, url: true },
     }),
     getPageCopy('learning-hub'),
+    getPageBlocks('learning-hub'),
   ])
+
+  // `getPageBlocks` is what `getPageCopy` reads underneath and both are cached,
+  // so asking for the raw blocks as well costs no second query. The prose
+  // blocks go through `copy`; this one is a list and has to be parsed.
+  const trainings = parseJsonColumn<ProposedTraining[]>(
+    blocks.trainings ?? null,
+    PROPOSED_TRAINING,
+  )
 
   const tiles: MosaicTile[] = [
     ...videoThumbnails.map((asset) => ({
@@ -310,7 +350,49 @@ export default async function LearningHubPage() {
         </Section>
       )}
 
-      {/* ── 4. Meet the speakers ─────────────────────────────────────────── */}
+      {/* ── 4. Proposed training ─────────────────────────────────────────── */}
+
+      {trainings.length > 0 && (
+        <Section tone="ink" size="wide">
+          <SectionHeading
+            eyebrow={copy('trainingEyebrow', 'In development')}
+            title={copy('trainingTitle', 'Proposed training')}
+            lead={copy(
+              'trainingLead',
+              'Programmes the forum intends to run. None is open for applications yet — the secretariat is assembling the funding and the partners, and will announce each one here.',
+            )}
+            inverted
+          />
+
+          <div className="mt-12 space-y-12 lg:space-y-16">
+            {trainings.map((training, index) => (
+              <article
+                key={training.title}
+                className="grid gap-6 border-t border-white/15 pt-8 lg:grid-cols-12 lg:gap-14"
+              >
+                <div className="lg:col-span-5">
+                  {/* Numbered because they are a set the reader works through,
+                      and because "Proposed training 1" was how they arrived. */}
+                  <p className="font-display text-5xl font-extrabold leading-none text-gold-400">
+                    {String(index + 1).padStart(2, '0')}
+                  </p>
+                  <h3 className="mt-5 font-display text-xl font-semibold leading-snug text-white sm:text-2xl">
+                    {training.title}
+                  </h3>
+                </div>
+
+                <div className="space-y-4 leading-relaxed text-white/75 lg:col-span-7">
+                  {paragraphs(training.body).map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── 5. Meet the speakers ─────────────────────────────────────────── */}
 
       <SpeakerWall
         speakers={speakers}

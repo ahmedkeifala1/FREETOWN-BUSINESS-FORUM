@@ -1717,6 +1717,35 @@ export const CMS_PAGES: CmsPage[] = [
         max: 40,
       },
       {
+        key: 'trainingEyebrow',
+        label: 'Proposed training — eyebrow',
+        kind: 'line',
+        max: 40,
+      },
+      {
+        key: 'trainingTitle',
+        label: 'Proposed training — heading',
+        kind: 'line',
+        max: 90,
+      },
+      {
+        key: 'trainingLead',
+        label: 'Proposed training — standfirst',
+        kind: 'prose',
+        rows: 3,
+      },
+      {
+        key: 'trainings',
+        label: 'Proposed training programmes',
+        hint: 'Leave empty to keep the two programmes written into the page. Adding one here replaces all of them, so copy those across first if you are adding a third.',
+        kind: 'list',
+        itemNoun: 'programme',
+        fields: [
+          { name: 'title', label: 'Programme name', kind: 'line' },
+          { name: 'body', label: 'Description', kind: 'prose' },
+        ],
+      },
+      {
         key: 'ctaTitle',
         label: 'Closing call to action — heading',
         kind: 'line',
