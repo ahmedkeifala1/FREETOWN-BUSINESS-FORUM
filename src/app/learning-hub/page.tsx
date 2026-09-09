@@ -194,7 +194,49 @@ export default async function LearningHubPage() {
         tiles={tiles}
       />
 
-      {/* ── 1. The sector guides ─────────────────────────────────────────── */}
+      {/* ── 1. Proposed training ─────────────────────────────────────────── */}
+
+      {trainings.length > 0 && (
+        <Section tone="forest" size="wide">
+          <SectionHeading
+            eyebrow={copy('trainingEyebrow', 'In development')}
+            title={copy('trainingTitle', 'Proposed training')}
+            lead={copy(
+              'trainingLead',
+              'Programmes the forum intends to run. None is open for applications yet — the secretariat is assembling the funding and the partners, and will announce each one here.',
+            )}
+            inverted
+          />
+
+          <div className="mt-12 space-y-12 lg:space-y-16">
+            {trainings.map((training, index) => (
+              <article
+                key={training.title}
+                className="grid gap-6 border-t border-white/15 pt-8 lg:grid-cols-12 lg:gap-14"
+              >
+                <div className="lg:col-span-5">
+                  {/* Numbered because they are a set the reader works through,
+                      and because "Proposed training 1" was how they arrived. */}
+                  <p className="font-display text-5xl font-extrabold leading-none text-gold-400">
+                    {String(index + 1).padStart(2, '0')}
+                  </p>
+                  <h3 className="mt-5 font-display text-xl font-semibold leading-snug text-white sm:text-2xl">
+                    {training.title}
+                  </h3>
+                </div>
+
+                <div className="space-y-4 leading-relaxed text-white/75 lg:col-span-7">
+                  {paragraphs(training.body).map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── 2. The sector guides ─────────────────────────────────────────── */}
 
       {sectors.length > 0 && (
         <Section tone="white" size="wide">
@@ -235,48 +277,6 @@ export default async function LearningHubPage() {
               </LinkCard>
             ))}
           </CardGrid>
-        </Section>
-      )}
-
-      {/* ── 2. Proposed training ─────────────────────────────────────────── */}
-
-      {trainings.length > 0 && (
-        <Section tone="ink" size="wide">
-          <SectionHeading
-            eyebrow={copy('trainingEyebrow', 'In development')}
-            title={copy('trainingTitle', 'Proposed training')}
-            lead={copy(
-              'trainingLead',
-              'Programmes the forum intends to run. None is open for applications yet — the secretariat is assembling the funding and the partners, and will announce each one here.',
-            )}
-            inverted
-          />
-
-          <div className="mt-12 space-y-12 lg:space-y-16">
-            {trainings.map((training, index) => (
-              <article
-                key={training.title}
-                className="grid gap-6 border-t border-white/15 pt-8 lg:grid-cols-12 lg:gap-14"
-              >
-                <div className="lg:col-span-5">
-                  {/* Numbered because they are a set the reader works through,
-                      and because "Proposed training 1" was how they arrived. */}
-                  <p className="font-display text-5xl font-extrabold leading-none text-gold-400">
-                    {String(index + 1).padStart(2, '0')}
-                  </p>
-                  <h3 className="mt-5 font-display text-xl font-semibold leading-snug text-white sm:text-2xl">
-                    {training.title}
-                  </h3>
-                </div>
-
-                <div className="space-y-4 leading-relaxed text-white/75 lg:col-span-7">
-                  {paragraphs(training.body).map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
         </Section>
       )}
 
