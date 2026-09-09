@@ -238,7 +238,7 @@ export default async function LearningHubPage() {
       {/* ── 2. The sector guides ─────────────────────────────────────────── */}
 
       {sectors.length > 0 && (
-        <Section tone="muted" size="wide">
+        <Section tone="harbour" size="wide">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
               eyebrow={copy('sectorsEyebrow', 'Sector guides')}
@@ -248,10 +248,11 @@ export default async function LearningHubPage() {
                 'What the data says, which incentives apply, and who is already operating.',
               )}
               className="mb-0"
+              inverted
             />
             <Link
               href="/learning-hub/sectors"
-              className="inline-flex items-center gap-1.5 font-medium text-forest-700 hover:underline"
+              className="inline-flex items-center gap-1.5 font-medium text-gold-300 hover:text-gold-200 hover:underline"
             >
               {copy('sectorsLinkLabel', 'All sectors')}
               <Icon name="arrowRight" className="size-4" />
