@@ -197,7 +197,7 @@ export default async function LearningHubPage() {
       {/* ── 1. Proposed training ─────────────────────────────────────────── */}
 
       {trainings.length > 0 && (
-        <Section tone="forest" size="wide">
+        <Section tone="white" size="wide">
           <SectionHeading
             eyebrow={copy('trainingEyebrow', 'In development')}
             title={copy('trainingTitle', 'Proposed training')}
@@ -205,27 +205,26 @@ export default async function LearningHubPage() {
               'trainingLead',
               'Programmes the forum intends to run. None is open for applications yet — the secretariat is assembling the funding and the partners, and will announce each one here.',
             )}
-            inverted
           />
 
           <div className="mt-12 space-y-12 lg:space-y-16">
             {trainings.map((training, index) => (
               <article
                 key={training.title}
-                className="grid gap-6 border-t border-white/15 pt-8 lg:grid-cols-12 lg:gap-14"
+                className="grid gap-6 border-t border-ink-200 pt-8 lg:grid-cols-12 lg:gap-14"
               >
                 <div className="lg:col-span-5">
                   {/* Numbered because they are a set the reader works through,
                       and because "Proposed training 1" was how they arrived. */}
-                  <p className="font-display text-5xl font-extrabold leading-none text-gold-400">
+                  <p className="font-display text-5xl font-extrabold leading-none text-gold-600">
                     {String(index + 1).padStart(2, '0')}
                   </p>
-                  <h3 className="mt-5 font-display text-xl font-semibold leading-snug text-white sm:text-2xl">
+                  <h3 className="mt-5 font-display text-xl font-semibold leading-snug text-ink-950 sm:text-2xl">
                     {training.title}
                   </h3>
                 </div>
 
-                <div className="space-y-4 leading-relaxed text-white/75 lg:col-span-7">
+                <div className="space-y-4 leading-relaxed text-ink-700 lg:col-span-7">
                   {paragraphs(training.body).map((paragraph) => (
                     <p key={paragraph}>{paragraph}</p>
                   ))}
@@ -239,7 +238,7 @@ export default async function LearningHubPage() {
       {/* ── 2. The sector guides ─────────────────────────────────────────── */}
 
       {sectors.length > 0 && (
-        <Section tone="white" size="wide">
+        <Section tone="muted" size="wide">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
               eyebrow={copy('sectorsEyebrow', 'Sector guides')}
@@ -291,7 +290,7 @@ export default async function LearningHubPage() {
           'The ministers, investors, founders and development partners whose sessions fill the hub.',
         )}
         linkLabel={copy('speakersLinkLabel', 'View all speakers')}
-        tone="muted"
+        tone="white"
       />
 
       <CtaBand
