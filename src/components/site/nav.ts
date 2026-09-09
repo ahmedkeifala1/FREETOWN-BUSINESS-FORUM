@@ -75,6 +75,10 @@ export const FOOTER_NAV: { heading: string; items: NavItem[] }[] = [
       { label: 'Sector guides', href: '/learning-hub/sectors' },
       { label: 'Doing business guide', href: '/learning-hub/doing-business' },
       { label: 'Reports & downloads', href: '/learning-hub/downloads' },
+      // Added when the Learning Hub's library grid was cut: that grid held the
+      // only link to the recordings page, and a published page reachable only
+      // by typing its address is a page nobody reaches.
+      { label: 'Session recordings', href: '/learning-hub/recordings' },
       { label: 'Deal Room', href: '/deal-room' },
     ],
   },

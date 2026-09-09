@@ -1639,36 +1639,6 @@ export const CMS_PAGES: CmsPage[] = [
     routes: ['/learning-hub', '/learning-hub/sectors', '/learning-hub/recordings', '/learning-hub/downloads'],
     blocks: [
       {
-        key: 'membershipEyebrow',
-        label: 'Membership — eyebrow',
-        kind: 'line',
-        max: 40,
-      },
-      {
-        key: 'membershipTitle',
-        label: 'Membership — heading',
-        kind: 'line',
-        max: 90,
-      },
-      {
-        key: 'membershipBody',
-        label: 'Membership — paragraph',
-        kind: 'prose',
-        rows: 5,
-      },
-      {
-        key: 'librariesEyebrow',
-        label: 'The libraries — eyebrow',
-        kind: 'line',
-        max: 40,
-      },
-      {
-        key: 'librariesTitle',
-        label: 'The libraries — heading',
-        kind: 'line',
-        max: 90,
-      },
-      {
         key: 'sectorsEyebrow',
         label: 'Sector guides — eyebrow',
         kind: 'line',

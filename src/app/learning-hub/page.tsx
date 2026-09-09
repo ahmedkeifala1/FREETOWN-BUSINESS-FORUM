@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { HeroMosaic, type MosaicTile } from '@/components/site/hero-mosaic'
 import { SpeakerWall } from '@/components/site/speaker-wall'
 import { ButtonLink } from '@/components/ui/button'
-import { Card, LinkCard } from '@/components/ui/card'
+import { LinkCard } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import {
   Breadcrumbs,
@@ -82,7 +82,6 @@ export const metadata: Metadata = {
 export default async function LearningHubPage() {
   const [
     sectors,
-    collections,
     recordingCount,
     downloadCount,
     speakerCount,
@@ -93,11 +92,6 @@ export default async function LearningHubPage() {
     blocks,
   ] = await Promise.all([
     getSectors(),
-    db.mediaCollection.findMany({
-      where: { isPublished: true },
-      orderBy: { sortOrder: 'asc' },
-      include: { _count: { select: { assets: true } } },
-    }),
     db.mediaAsset.count({ where: { isPublic: true, kind: MediaKind.VIDEO } }),
     db.mediaAsset.count({
       where: { isPublic: true, kind: MediaKind.DOWNLOAD },
@@ -185,8 +179,6 @@ export default async function LearningHubPage() {
     },
   ].filter((figure): figure is Figure => Boolean(figure))
 
-  const topics = sectors.map((sector) => sector.name)
-
   return (
     <>
       <Breadcrumbs
@@ -202,111 +194,7 @@ export default async function LearningHubPage() {
         tiles={tiles}
       />
 
-      {/* ── 1. About our memberships ─────────────────────────────────────── */}
-
-      <Section tone="white" size="wide">
-        <div className="max-w-3xl">
-          <SectionHeading
-            eyebrow={copy('membershipEyebrow', 'Membership')}
-            title={copy('membershipTitle', 'About our memberships')}
-            className="mb-0"
-          />
-
-          <p className="mt-6 text-base leading-relaxed text-ink-700 sm:text-lg">
-            {copy(
-              'membershipBody',
-              'Membership gives your company access to the forum’s whole programme — the bi-annual events, the Deal Room, a listing in the national business directory, and the Learning Hub in full. Whether it is your leadership team weighing an expansion or your younger managers learning how capital is actually raised here, the material is what the room itself works from.',
-            )}
-          </p>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <MembershipActions />
-          </div>
-        </div>
-      </Section>
-
-      {/* ── 2. What is inside the hub ────────────────────────────────────── */}
-
-      <Section tone="muted" size="wide">
-        <SectionHeading
-          eyebrow={copy('librariesEyebrow', 'What’s inside')}
-          title={copy('librariesTitle', 'The Learning Hub, library by library')}
-          lead={
-            topics.length > 0
-              ? `Recordings, reports and guides across the sectors the forum works on: ${sentence(topics)}.`
-              : 'Recordings, reports and guides across the sectors the forum works on.'
-          }
-        />
-
-        <CardGrid columns={3} className="mt-10">
-          {collections.map((collection) => (
-            <LinkCard
-              key={collection.id}
-              href={`/learning-hub/${collection.slug === 'downloads' ? 'downloads' : 'recordings'}`}
-              className="h-full"
-            >
-              <span className="flex size-11 items-center justify-center bg-forest-100 text-forest-700">
-                <Icon
-                  name={
-                    collection.kind === 'DOWNLOAD'
-                      ? 'download'
-                      : collection.kind === 'VIDEO'
-                        ? 'zap'
-                        : 'document'
-                  }
-                  className="size-5"
-                />
-              </span>
-
-              <h3 className="mt-4 font-display text-base font-semibold text-ink-950 group-hover:text-forest-700">
-                {collection.name}
-              </h3>
-
-              {collection.description && (
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-600">
-                  {collection.description}
-                </p>
-              )}
-
-              {/* The honest count, including nought. A library that says
-                  nothing about its size reads as fuller than it is. */}
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-ink-500">
-                {collection._count.assets === 0
-                  ? 'Being catalogued'
-                  : `${collection._count.assets} item${collection._count.assets === 1 ? '' : 's'}`}
-              </p>
-            </LinkCard>
-          ))}
-
-          <Card className="flex h-full flex-col bg-harbour-800 text-white">
-            <span className="flex size-11 items-center justify-center bg-white/15">
-              <Icon name="document" className="size-5" />
-            </span>
-            <h3 className="mt-4 font-display text-base font-semibold">
-              Doing business in Sierra Leone
-            </h3>
-            <p className="mt-2 flex-1 text-sm leading-relaxed text-white/75">
-              Registration, tax, incentives, land tenure and labour — the
-              practical guide for investors arriving for the first time.
-            </p>
-            <ButtonLink
-              href="/learning-hub/doing-business"
-              size="sm"
-              className="mt-5 self-start rounded-none border border-white/40 bg-transparent font-semibold uppercase tracking-wider text-white hover:bg-white/10"
-            >
-              Read the guide
-            </ButtonLink>
-          </Card>
-        </CardGrid>
-
-        {/* The reference repeats its three membership controls under this
-            section rather than making the reader scroll back for them. */}
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <MembershipActions />
-        </div>
-      </Section>
-
-      {/* ── 3. The sector guides ─────────────────────────────────────────── */}
+      {/* ── 1. The sector guides ─────────────────────────────────────────── */}
 
       {sectors.length > 0 && (
         <Section tone="white" size="wide">
@@ -350,7 +238,7 @@ export default async function LearningHubPage() {
         </Section>
       )}
 
-      {/* ── 4. Proposed training ─────────────────────────────────────────── */}
+      {/* ── 2. Proposed training ─────────────────────────────────────────── */}
 
       {trainings.length > 0 && (
         <Section tone="ink" size="wide">
@@ -392,7 +280,7 @@ export default async function LearningHubPage() {
         </Section>
       )}
 
-      {/* ── 5. Meet the speakers ─────────────────────────────────────────── */}
+      {/* ── 3. Meet the speakers ─────────────────────────────────────────── */}
 
       <SpeakerWall
         speakers={speakers}
@@ -538,31 +426,4 @@ function LearningHubHero({
       </div>
     </section>
   )
-}
-
-/**
- * The three membership controls, repeated under each explainer as they are on
- * the reference site. Defined once so the two rows cannot drift apart.
- */
-function MembershipActions() {
-  return (
-    <>
-      <ButtonLink href="/contact" variant="primary" size="md">
-        Make an enquiry
-      </ButtonLink>
-      <ButtonLink href="/membership/tiers" variant="outline" size="md">
-        See the tiers
-      </ButtonLink>
-      <ButtonLink href="/membership" variant="ghost" size="md">
-        Find out more about membership
-        <Icon name="arrowRight" className="size-4" />
-      </ButtonLink>
-    </>
-  )
-}
-
-/** "a, b and c" — the counters read as a sentence, not as a list. */
-function sentence(parts: string[]): string {
-  if (parts.length <= 1) return parts[0] ?? ''
-  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
